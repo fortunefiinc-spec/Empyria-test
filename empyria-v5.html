@@ -1,0 +1,2337 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EMPYRIA — Build Your Emporium</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#c9a84c;--gold-b:#f0c96e;--gold-d:#7a5a1a;
+  --bg:#0b0d12;--bg2:#12151e;--bg3:#1a1f2e;
+  --bdr:rgba(201,168,76,0.22);--bdr-b:rgba(201,168,76,0.55);
+  --txt:#d4c4a0;--txt-d:#6a5a40;
+  --grn:#4caf7a;--red:#e05555;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+#dpad,#cam-ctrl,#action-bar,#mode-toggle{user-select:none;-webkit-user-select:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0e0a;font-family:Rajdhani,sans-serif;color:var(--txt);}
+
+
+/* ── COMPACT RESOURCE PANEL ── */
+#res-compact{display:flex;flex-wrap:wrap;gap:3px;}
+.rcp{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.07);border:1px solid var(--bdr);border-radius:8px;padding:2px 5px;font-size:10px;font-weight:700;}
+.rcp.emp{background:linear-gradient(135deg,rgba(20,14,0,.95),rgba(36,24,0,.95));border-color:var(--gold);}
+.rcp.emp .rv{color:var(--gold-b);}
+.rcp.hidden{display:none;}
+
+/* ── 3D WORLD ── */
+#world-view{position:fixed;inset:0;z-index:0;}
+#three-canvas{display:block;width:100%;height:100%;}
+
+/* ── WORLD HUD (always visible) ── */
+#world-hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none;}
+#topbar{
+  display:flex;flex-direction:column;
+  padding:6px 10px 4px;
+  background:linear-gradient(180deg,rgba(9,11,16,.97),rgba(9,11,16,.7));
+  pointer-events:all;
+  gap:4px;
+}
+#topbar-row1{display:flex;align-items:center;justify-content:space-between;}
+#res-compact{display:flex;flex-wrap:wrap;gap:3px;}
+.rcp{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.07);border:1px solid var(--bdr);border-radius:8px;padding:2px 5px;font-size:10px;font-weight:700;}
+.rcp.emp{background:linear-gradient(135deg,rgba(20,14,0,.9),rgba(36,24,0,.9));border-color:var(--gold);}
+.rcp .rv{color:#fff;}
+.rcp.emp .rv{color:var(--gold-b);}
+#logo{font-family:Cinzel,serif;font-size:14px;font-weight:900;color:var(--gold-b);letter-spacing:2px;text-shadow:0 0 14px rgba(201,168,76,.5);}
+#logo small{display:block;font-size:7px;letter-spacing:4px;color:var(--txt-d);font-weight:400;}
+.res-row{display:flex;gap:4px;}
+.rc{display:flex;align-items:center;gap:3px;background:rgba(18,21,30,.9);border:1px solid var(--bdr);border-radius:14px;padding:3px 7px;font-size:11px;font-weight:700;}
+.rc.emp{background:linear-gradient(135deg,rgba(20,14,0,.95),rgba(36,24,0,.95));border-color:var(--gold);box-shadow:0 0 7px rgba(201,168,76,.18);}
+.rc.emp span:last-child{color:var(--gold-b);}
+
+/* mode toggle */
+#mode-toggle{
+  position:fixed;top:56px;right:11px;z-index:15;
+  display:flex;flex-direction:column;gap:5px;pointer-events:all;
+}
+.mtb{
+  background:rgba(18,21,30,.92);border:1px solid var(--bdr);border-radius:9px;
+  padding:7px 11px;font-size:11px;font-weight:700;color:var(--txt);cursor:pointer;
+  transition:all .15s;white-space:nowrap;text-align:center;
+}
+.mtb:hover,.mtb.act{border-color:var(--gold);color:var(--gold-b);background:rgba(201,168,76,.08);}
+.mtb i{display:block;font-size:16px;margin-bottom:1px;font-style:normal;}
+
+/* action label above crosshair */
+#action-hint{
+  position:fixed;top:calc(50% - 28px);left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.7);border:1px solid var(--bdr-b);border-radius:7px;
+  padding:3px 10px;font-size:10px;font-weight:700;color:var(--gold-b);
+  pointer-events:none;z-index:11;opacity:0;transition:opacity .2s;white-space:nowrap;
+}
+
+/* d-pad */
+#dpad{position:fixed;left:12px;bottom:90px;z-index:15;pointer-events:all;}
+.dp-grid{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px);gap:3px;}
+.dp{background:rgba(18,21,30,.85);border:1px solid rgba(255,255,255,.14);border-radius:8px;
+    color:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;
+    user-select:none;-webkit-user-select:none;touch-action:none;-webkit-touch-callout:none;-webkit-user-drag:none;pointer-events:auto;}
+.dp:active,.dp.pr{background:rgba(255,255,255,.18);}
+.dp.empty{background:transparent;border-color:transparent;pointer-events:none;}
+
+/* cam controls */
+#cam-ctrl{position:fixed;right:11px;bottom:90px;z-index:15;display:flex;flex-direction:column;gap:5px;pointer-events:all;}
+.cc{width:36px;height:36px;background:rgba(18,21,30,.85);border:1px solid rgba(255,255,255,.14);border-radius:8px;
+    color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;
+    user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-touch-callout:none;}
+.cc:active{background:rgba(255,255,255,.18);}
+
+/* action buttons */
+#action-bar{
+  position:fixed;bottom:12px;left:50%;transform:translateX(-50%);
+  display:flex;gap:7px;z-index:15;pointer-events:all;
+}
+.ab{
+  background:rgba(18,21,30,.92);border:1.5px solid rgba(255,255,255,.18);
+  border-radius:10px;padding:8px 16px;color:#fff;font-family:Rajdhani,sans-serif;
+  font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.ab.mine-btn{border-color:rgba(224,85,85,.4);}
+.ab.mine-btn:hover{border-color:var(--red);color:var(--red);}
+.ab.city-btn{border-color:rgba(201,168,76,.4);}
+.ab.city-btn:hover{border-color:var(--gold);color:var(--gold-b);}
+.ab.sell-btn{border-color:rgba(76,175,122,.4);}
+.ab.sell-btn:hover{border-color:var(--grn);color:var(--grn);}
+
+/* ── CITY PANEL (slide up) ── */
+#city-panel{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,.0);
+  display:none;flex-direction:column;
+  transition:background .3s;
+}
+#city-panel.open{display:flex;background:rgba(0,0,0,.85);}
+.cp-sheet{
+  margin-top:auto;background:linear-gradient(180deg,#0f121c,#0b0d14);
+  border-radius:16px 16px 0 0;border-top:1.5px solid var(--bdr-b);
+  max-height:88vh;overflow-y:auto;
+  transform:translateY(100%);transition:transform .3s ease-out;
+}
+#city-panel.open .cp-sheet{transform:translateY(0);}
+.cp-drag{width:36px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:10px auto 0;}
+
+/* city inner tabs */
+.cp-tabs{display:flex;border-bottom:1px solid var(--bdr);padding:0 12px;}
+.cp-tab{flex:1;padding:9px 4px 7px;text-align:center;font-size:10px;font-weight:700;color:var(--txt-d);
+        cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.5px;}
+.cp-tab.on{color:var(--gold-b);border-bottom-color:var(--gold);}
+.cp-tab i{display:block;font-size:15px;margin-bottom:1px;font-style:normal;}
+
+.cp-page{display:none;padding:12px;}
+.cp-page.on{display:block;}
+
+/* buildings grid */
+.bld-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.bc{background:var(--bg3);border:1px solid var(--bdr);border-radius:11px;padding:11px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.bc:hover{border-color:var(--bdr-b);}
+.bc.built{border-color:rgba(201,168,76,.45);}
+.bc.superseded{opacity:0.45;border-color:rgba(100,100,100,.3);}
+.bc.built::after{content:'✓';position:absolute;top:7px;right:8px;width:16px;height:16px;border-radius:50%;background:var(--grn);color:#000;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:16px;text-align:center;}
+.bc-ico{font-size:26px;margin-bottom:5px;}
+.bc-name{font-family:Cinzel,serif;font-size:11px;color:var(--gold-b);margin-bottom:2px;}
+.bc-eff{font-size:9px;color:var(--txt-d);line-height:1.45;margin-bottom:6px;}
+.bc-costs{display:flex;gap:3px;flex-wrap:wrap;}
+.bct{font-size:9px;font-weight:700;padding:2px 6px;border-radius:7px;border:1px solid;}
+.bct.ok{border-color:rgba(76,175,122,.4);color:var(--grn);background:rgba(76,175,122,.07);}
+.bct.no{border-color:rgba(224,85,85,.4);color:var(--red);background:rgba(224,85,85,.07);}
+.bc-lock{position:absolute;inset:0;background:rgba(9,11,16,.72);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+
+/* mult bar */
+.mult-bar{background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:8px 10px;margin-bottom:10px;}
+.mb-title{font-size:9px;letter-spacing:2px;color:var(--txt-d);font-weight:700;margin-bottom:5px;}
+.mb-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+.mb-row{display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border-radius:5px;padding:3px 7px;}
+.mb-l{font-size:11px;}.mb-v{font-size:12px;font-weight:700;color:var(--gold-b);}
+
+/* passive bar */
+.pass-bar{display:flex;gap:5px;margin-bottom:10px;background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:7px 10px;align-items:center;}
+.pb-lbl{font-size:9px;letter-spacing:1px;color:var(--txt-d);font-weight:700;white-space:nowrap;}
+.pb-vals{display:flex;gap:5px;flex-wrap:wrap;}
+.pb-c{font-size:10px;font-weight:700;background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;padding:2px 7px;}
+
+/* games list */
+.gl{display:flex;flex-direction:column;gap:7px;}
+.gc{background:var(--bg3);border:1px solid var(--bdr);border-radius:11px;padding:10px 11px;display:flex;align-items:center;gap:9px;position:relative;overflow:hidden;}
+.gc-ico{font-size:26px;flex-shrink:0;}
+.gc-body{flex:1;min-width:0;}
+.gc-name{font-family:Cinzel,serif;font-size:11px;color:var(--gold-b);}
+.gc-desc{font-size:9px;color:var(--txt-d);margin:1px 0 3px;}
+.gc-tags{display:flex;gap:3px;flex-wrap:wrap;}
+.gt{font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);}
+.gc-cd{font-size:9px;color:var(--txt-d);margin-top:3px;}
+.gc-play{flex-shrink:0;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;font-family:Cinzel,serif;font-size:10px;font-weight:700;padding:7px 12px;border-radius:7px;border:none;cursor:pointer;white-space:nowrap;}
+.gc-play:disabled{background:rgba(255,255,255,.07);color:var(--txt-d);cursor:not-allowed;}
+.gc-lock{position:absolute;inset:0;background:rgba(9,11,16,.68);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--txt-d);gap:3px;}
+
+/* shop */
+.sh-sec{margin-bottom:12px;}
+.sh-t{font-size:9px;letter-spacing:2px;color:var(--txt-d);font-weight:700;margin-bottom:6px;}
+.sh-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.sh-card{background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:9px;cursor:pointer;text-align:center;transition:border-color .15s;}
+.sh-card:hover{border-color:var(--bdr-b);}
+.sh-card.feat{border-color:rgba(201,168,76,.4);background:rgba(201,168,76,.03);}
+.sh-ico{font-size:20px;margin-bottom:3px;}
+.sh-name{font-size:11px;font-weight:700;color:var(--gold-b);margin-bottom:1px;}
+.sh-desc{font-size:9px;color:var(--txt-d);margin-bottom:4px;line-height:1.4;}
+.sh-p{display:flex;justify-content:center;gap:4px;}
+.pr{font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;}
+.pr-t{background:rgba(30,136,229,.1);border:1px solid rgba(30,136,229,.28);color:#64b5f6;}
+.pr-s{background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);color:#ffc107;}
+
+/* ── GAME MODAL ── */
+#gmod{position:fixed;inset:0;background:#090b12;z-index:200;display:none;flex-direction:column;}
+#gmod.on{display:flex;}
+#gmod-hdr{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--bg2);border-bottom:1px solid var(--bdr);}
+#gmod-back{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:5px 10px;color:var(--txt);font-size:12px;font-weight:700;cursor:pointer;}
+#gmod-title{font-family:Cinzel,serif;font-size:13px;color:var(--gold-b);flex:1;}
+#gmod-body{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+
+/* TAP */
+#g-tap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-around;padding:14px;background:radial-gradient(ellipse at 50% 90%,#1a1200,#090b12);}
+#tap-rock{width:130px;height:130px;background:radial-gradient(circle at 38% 32%,#777,#2a2a2a);border-radius:50% 44% 56% 47%/47% 53% 47% 53%;display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;box-shadow:0 8px 28px rgba(0,0,0,.65);transition:transform .07s;user-select:none;position:relative;touch-action:none;}
+#tap-rock:active{transform:scale(.92);}
+.tpar{position:absolute;font-size:12px;font-weight:900;pointer-events:none;animation:tpf .75s ease-out forwards;color:var(--gold-b);}
+@keyframes tpf{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-52px) scale(.7)}}
+#tap-combo{font-family:Cinzel,serif;font-size:19px;color:var(--gold-b);min-height:26px;text-align:center;}
+#tap-pw{width:100%;max-width:260px;}
+#tap-pl{display:flex;justify-content:space-between;font-size:10px;color:var(--txt-d);margin-bottom:4px;}
+#tap-pb{width:100%;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+#tap-pf{height:100%;background:linear-gradient(90deg,var(--gold-d),var(--gold-b));border-radius:4px;transition:width .12s;width:0%;}
+.tap-sts{display:flex;gap:10px;}
+.ts{background:var(--bg3);border:1px solid var(--bdr);border-radius:7px;padding:6px 13px;text-align:center;}
+.ts-v{font-size:16px;font-weight:700;color:var(--gold-b);}
+.ts-l{font-size:9px;color:var(--txt-d);}
+#tap-end{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;font-family:Cinzel,serif;font-size:12px;font-weight:700;padding:11px 0;border-radius:9px;border:none;cursor:pointer;width:100%;max-width:260px;}
+
+/* AIM */
+#g-aim{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#aim-arena{flex:1;position:relative;background:radial-gradient(ellipse at 50% 50%,#0a180a,#090b12);overflow:hidden;cursor:crosshair;}
+.atgt{position:absolute;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;animation:tpop .12s ease-out forwards;}
+@keyframes tpop{0%{transform:scale(0)}100%{transform:scale(1)}}
+.atgt.ag{width:34px;height:34px;background:radial-gradient(circle,#ffd700,#a07000);box-shadow:0 0 10px rgba(255,215,0,.6);}
+.atgt.as{width:50px;height:50px;background:radial-gradient(circle,#bbb,#555);}
+.atgt.ab{width:42px;height:42px;background:radial-gradient(circle,#333,#111);border:2px solid var(--red);}
+#aim-ov{position:absolute;inset:0;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;}
+.ao-t{font-family:Cinzel,serif;font-size:18px;color:var(--gold-b);}
+.ao-d{font-size:11px;color:var(--txt-d);text-align:center;max-width:240px;line-height:1.6;}
+.ao-btn{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;font-family:Cinzel,serif;font-size:12px;font-weight:700;padding:10px 28px;border-radius:8px;border:none;cursor:pointer;}
+#aim-hud{flex-shrink:0;display:flex;align-items:center;padding:7px 11px;background:var(--bg2);border-top:1px solid var(--bdr);gap:7px;}
+#aim-sc{font-size:16px;font-weight:700;color:var(--gold-b);}
+#aim-tbar{flex:1;height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;}
+#aim-tf{height:100%;background:linear-gradient(90deg,var(--red),var(--gold));width:100%;transition:width .1s linear;}
+
+/* MEMORY */
+#g-mem{flex:1;display:flex;flex-direction:column;padding:10px;gap:7px;background:radial-gradient(ellipse at 50% 0%,#0c0c1c,#090b12);}
+#mem-hud{display:flex;justify-content:space-between;}
+.mh{text-align:center;}.mh-v{font-size:18px;font-weight:700;color:var(--gold-b);}.mh-l{font-size:9px;color:var(--txt-d);}
+#mem-grid{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;max-height:360px;}
+.mcard{background:linear-gradient(135deg,#1a1f2e,#12151e);border:1.5px solid var(--bdr);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;aspect-ratio:1;}
+.mcard.flip,.mcard.match{background:linear-gradient(135deg,#121e10,#0a150a);border-color:rgba(76,175,122,.4);}
+.mcard.match{border-color:rgba(76,175,122,.75);background:rgba(76,175,122,.09);}
+.mcard.hide .mface{visibility:hidden;}
+#mem-msg{text-align:center;font-size:11px;color:var(--txt-d);min-height:16px;}
+
+/* BLOCK */
+#g-block{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px;gap:7px;background:radial-gradient(ellipse at 50% 0%,#0a0a1a,#090b12);}
+#bh{display:flex;gap:10px;width:100%;max-width:320px;justify-content:center;}
+.bhc{text-align:center;background:var(--bg3);border:1px solid var(--bdr);border-radius:7px;padding:4px 13px;}
+.bhc-v{font-size:15px;font-weight:700;color:var(--gold-b);}
+.bhc-l{font-size:9px;color:var(--txt-d);}
+#bwrap{display:flex;gap:8px;align-items:flex-start;}
+#bcanvas{border:1.5px solid var(--bdr-b);border-radius:5px;background:#0a0d14;display:block;}
+#bnext-w{display:flex;flex-direction:column;gap:5px;align-items:center;}
+#bnext-l{font-size:9px;color:var(--txt-d);letter-spacing:1px;}
+#bnext{border:1px solid var(--bdr);border-radius:4px;background:var(--bg3);}
+#bctrl{display:flex;gap:5px;width:100%;max-width:300px;justify-content:center;}
+.bc2{width:46px;height:46px;background:var(--bg3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.bc2:active{background:var(--bg3);}
+
+/* REACTION */
+#g-react{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-around;padding:16px;background:radial-gradient(ellipse at 50% 50%,#0a0a1c,#090b12);}
+#react-rnd{font-size:10px;letter-spacing:2px;color:var(--txt-d);}
+#react-c{width:128px;height:128px;border-radius:50%;background:#1a1f2e;border:3px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--txt-d);user-select:none;}
+#react-fb{font-family:Cinzel,serif;font-size:21px;min-height:30px;text-align:center;}
+#react-res{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:280px;}
+.rrc{background:var(--bg3);border:1px solid var(--bdr);border-radius:7px;padding:4px 9px;font-size:10px;text-align:center;min-width:66px;}
+.rrc-r{font-weight:700;}.rrc-e{color:var(--gold-b);}
+
+/* RESULT */
+#result{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:none;align-items:center;justify-content:center;}
+#result.on{display:flex;}
+.res-panel{background:linear-gradient(135deg,#12151e,#1a1f2e);border:1.5px solid var(--bdr-b);border-radius:13px;padding:20px;text-align:center;min-width:240px;max-width:300px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.8);}
+.rp-t{font-family:Cinzel,serif;font-size:15px;color:var(--gold-b);margin-bottom:3px;}
+.rp-s{font-size:10px;color:var(--txt-d);margin-bottom:12px;}
+.rp-rws{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.rp-rw{background:var(--bg3);border:1px solid var(--bdr);border-radius:8px;padding:8px 11px;text-align:center;}
+.rp-rw-v{font-size:17px;font-weight:700;color:var(--gold-b);}
+.rp-rw-l{font-size:9px;color:var(--txt-d);margin-top:1px;}
+.rp-c{width:100%;padding:10px;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;font-family:Cinzel,serif;font-size:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;margin-bottom:6px;}
+.rp-a{width:100%;padding:7px;background:transparent;border:1px solid var(--bdr);color:var(--txt-d);font-size:10px;border-radius:7px;cursor:pointer;}
+
+/* TOAST */
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(9,11,16,.97);border:1px solid var(--bdr-b);border-radius:8px;padding:6px 16px;font-size:11px;font-weight:700;color:var(--gold-b);pointer-events:none;opacity:0;transition:opacity .25s;z-index:400;white-space:nowrap;}
+
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:500;background:linear-gradient(160deg,#05070e,#0c0f18,#08090f);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;padding:20px;}
+.sp-logo{font-family:Cinzel,serif;font-size:34px;font-weight:900;color:var(--gold-b);letter-spacing:4px;text-shadow:0 0 40px rgba(201,168,76,.7);animation:gp 2.5s infinite;}
+@keyframes gp{0%,100%{text-shadow:0 0 30px rgba(201,168,76,.6);}50%{text-shadow:0 0 60px rgba(201,168,76,1),0 0 100px rgba(201,168,76,.35);}}
+.sp-tag{font-size:10px;letter-spacing:6px;color:var(--txt-d);margin-top:4px;margin-bottom:20px;}
+.sp-story{font-size:12px;color:var(--txt-d);line-height:1.9;max-width:265px;margin-bottom:22px;}
+.sp-story strong{color:var(--txt);}
+.sp-btn{background:linear-gradient(135deg,#8a6a28,var(--gold),#8a6a28);background-size:200%;animation:shim 2s infinite;color:#000;font-family:Cinzel,serif;font-size:13px;font-weight:700;padding:13px 36px;border-radius:11px;border:none;cursor:pointer;box-shadow:0 0 28px rgba(201,168,76,.4);}
+@keyframes shim{0%{background-position:100%;}100%{background-position:-100%;}}
+.sp-chips{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;justify-content:center;}
+.sp-chip{font-size:9px;padding:3px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.1);color:var(--txt-d);}
+
+::-webkit-scrollbar{width:3px;}.:-webkit-scrollbar-thumb{background:rgba(201,168,76,.2);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-logo">EMPYRIA</div>
+  <div class="sp-tag">BUILD YOUR EMPORIUM</div>
+  <div class="sp-story">Jaar <strong>2031</strong>. Drie corporaties controleren 94% van alle rijkdom. Maar op de <strong>TON blockchain</strong> pulseerde een ander systeem.<br><br>Verken de <strong>open 3D wereld</strong>. Mine resources. Bouw je Emporium. Verdien <strong>$EMP</strong>.</div>
+  <button class="sp-btn" onclick="launch()">▶ ENTER EMPYRIA</button>
+  <div class="sp-chips">
+    <div class="sp-chip">⚡ TON Blockchain</div>
+    <div class="sp-chip">🌍 3D Open World</div>
+    <div class="sp-chip">🏛️ City Builder</div>
+    <div class="sp-chip">🪙 $EMP Token</div>
+  </div>
+</div>
+
+<!-- 3D WORLD -->
+<div id="world-view"><canvas id="three-canvas"></canvas></div>
+
+<!-- WORLD HUD -->
+<div id="world-hud">
+  <div id="topbar">
+    <div id="topbar-row1">
+    <div id="logo">EMPYRIA<small id="era-label">ERA I — STONE AGE</small></div>
+    </div><!-- /topbar-row1 -->
+    <div id="res-compact"></div><div id="res-compact"></div>
+  </div>
+</div>
+
+<div id="action-hint"></div>
+
+<!-- MODE TOGGLE -->
+<div id="mode-toggle">
+  <div class="mtb act" id="mt-mine" onclick="setWorldMode('mine')"><i>⛏️</i>MINE</div>
+  <div class="mtb" id="mt-build" onclick="setWorldMode('build')"><i>🗺️</i>EXPLORE</div>
+  <div class="mtb" onclick="openCity()"><i>🏛️</i>CITY</div>
+</div>
+
+<!-- D-PAD -->
+<div id="dpad">
+  <div class="dp-grid">
+    <div class="dp empty"></div>
+    <div class="dp" id="dpW" onpointerdown="mvStart(event,'w')" onpointerup="mvStop(event,'w')" onpointercancel="mvStop(event,'w')" onpointerleave="mvStop(event,'w')">▲</div>
+    <div class="dp empty"></div>
+    <div class="dp" id="dpA" onpointerdown="mvStart(event,'a')" onpointerup="mvStop(event,'a')" onpointercancel="mvStop(event,'a')" onpointerleave="mvStop(event,'a')">◀</div>
+    <div class="dp" onclick="resetCam()">⊙</div>
+    <div class="dp" id="dpD" onpointerdown="mvStart(event,'d')" onpointerup="mvStop(event,'d')" onpointercancel="mvStop(event,'d')" onpointerleave="mvStop(event,'d')">▶</div>
+    <div class="dp empty"></div>
+    <div class="dp" id="dpS" onpointerdown="mvStart(event,'s')" onpointerup="mvStop(event,'s')" onpointercancel="mvStop(event,'s')" onpointerleave="mvStop(event,'s')">▼</div>
+    <div class="dp empty"></div>
+  </div>
+</div>
+
+<!-- CAM -->
+<div id="cam-ctrl">
+  <div class="cc" onclick="camZ(-2)">+</div>
+  <div class="cc" onclick="camZ(2)">-</div>
+  <div class="cc" onclick="camR(-0.35)">↺</div>
+  <div class="cc" onclick="camR(0.35)">↻</div>
+</div>
+
+<!-- ACTION BAR -->
+<div id="action-bar">
+  <div class="ab mine-btn" id="mine-action-btn" onclick="doMine()">⛏️ Mine</div>
+  <div class="ab city-btn" onclick="openCity()">🏛️ City</div>
+  <div class="ab sell-btn" onclick="doSell()">💰 Sell</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     CITY PANEL
+════════════════════════════════════════════ -->
+<div id="city-panel" onclick="cityPanelBgClick(event)">
+  <div class="cp-sheet" id="cp-sheet">
+    <div class="cp-drag"></div>
+    <div class="cp-tabs">
+      <div class="cp-tab on" onclick="cpTab('bld')"><i>🏛️</i>BOUWEN</div>
+      <div class="cp-tab" onclick="cpTab('games')"><i>🎮</i>GAMES</div>
+      <div class="cp-tab" onclick="cpTab('shop')"><i>💎</i>SHOP</div>
+      <div class="cp-tab" onclick="cpTab('stats')"><i>📊</i>STATS</div>
+    </div>
+
+    <!-- BUILD -->
+    <div class="cp-page on" id="cp-bld">
+      <div class="mult-bar">
+        <div class="mb-title">MULTIPLIERS ACTIEF</div>
+        <div class="mb-grid">
+          <div class="mb-row"><span class="mb-l">🪨 Stone ×</span><span class="mb-v" id="mm-s">1.00</span></div>
+          <div class="mb-row"><span class="mb-l">🪵 Wood ×</span><span class="mb-v" id="mm-w">1.00</span></div>
+          <div class="mb-row"><span class="mb-l">🥇 Gold ×</span><span class="mb-v" id="mm-g">1.00</span></div>
+          <div class="mb-row"><span class="mb-l">🪙 $EMP ×</span><span class="mb-v" id="mm-e">1.00</span></div>
+        </div>
+      </div>
+      <div class="pass-bar">
+        <div class="pb-lbl">PASSIEF/UUR</div>
+        <div class="pb-vals">
+          <div class="pb-c">🪨 <span id="pb-s">0</span></div>
+          <div class="pb-c">🪵 <span id="pb-w">0</span></div>
+          <div class="pb-c">🥇 <span id="pb-g">0</span></div>
+          <div class="pb-c">⚙️ <span id="pb-iron">0</span></div>
+          <div class="pb-c">💎 <span id="pb-crystal">0</span></div>
+          <div class="pb-c" id="pb-mana-wrap" style="display:none">🔮 <span id="pb-mana">0</span></div>
+          <div class="pb-c" id="pb-star-wrap" style="display:none">⭐ <span id="pb-star">0</span></div>
+          <div class="pb-c" id="pb-dark-wrap" style="display:none">🌑 <span id="pb-dark">0</span></div>
+          <div class="pb-c">🪙 <span id="pb-e">0</span></div>
+        </div>
+      </div>
+      <div class="bld-grid" id="bld-grid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- QUESTS -->
+    <div class="cp-page" id="cp-quest">
+      <div id="cp-quests"></div>
+    </div>
+
+    <!-- UPGRADES -->
+    <div class="cp-page" id="cp-upgrades-page">
+      <div id="cp-upgrades"></div>
+    </div>
+
+    <!-- PRESTIGE -->
+    <div class="cp-page" id="cp-prestige-page">
+      <div id="cp-prestige"></div>
+    </div>
+
+    <!-- GAMES -->
+    <div class="cp-page" id="cp-games">
+      <div class="gl" id="games-list">
+        <div class="gc">
+          <div class="gc-ico">⛏️</div>
+          <div class="gc-body">
+            <div class="gc-name">Tap to Mine</div>
+            <div class="gc-desc">Tik zo snel mogelijk! Combo voor bonus.</div>
+            <div class="gc-tags"><span class="gt">🪨 Stone</span><span class="gt">🪵 Wood</span><span class="gt">30 min</span></div>
+            <div class="gc-cd" id="cd-tap">⏱ <span style="color:var(--grn)">READY!</span></div>
+          </div>
+          <button class="gc-play" id="btn-tap" onclick="playGame('tap')">PLAY</button>
+        </div>
+        <div class="gc">
+          <div class="gc-ico">🎯</div>
+          <div class="gc-body">
+            <div class="gc-name">Aim &amp; Shoot</div>
+            <div class="gc-desc">Schiet targets in 20s. Pas op voor bommen!</div>
+            <div class="gc-tags"><span class="gt">🥇 Gold</span><span class="gt">🪨 Stone</span><span class="gt">45 min</span></div>
+            <div class="gc-cd" id="cd-aim">⏱ <span style="color:var(--grn)">READY!</span></div>
+          </div>
+          <button class="gc-play" id="btn-aim" onclick="playGame('aim')">PLAY</button>
+        </div>
+        <div class="gc">
+          <div class="gc-ico">🃏</div>
+          <div class="gc-body">
+            <div class="gc-name">Memory Match</div>
+            <div class="gc-desc">Vind alle 8 paren. Minder moves = meer!</div>
+            <div class="gc-tags"><span class="gt">🪵 Wood</span><span class="gt">🥇 Gold</span><span class="gt">60 min</span></div>
+            <div class="gc-cd" id="cd-mem">⏱ <span style="color:var(--grn)">READY!</span></div>
+          </div>
+          <button class="gc-play" id="btn-mem" onclick="playGame('mem')">PLAY</button>
+        </div>
+        <div class="gc" id="gc-block">
+          <div class="gc-ico">🧱</div>
+          <div class="gc-body">
+            <div class="gc-name">Block Builder</div>
+            <div class="gc-desc">Tetris-stijl. Lijnen clearen = resources!</div>
+            <div class="gc-tags"><span class="gt">🪨🪵🥇 Alles</span><span class="gt">90 min</span></div>
+            <div class="gc-cd" id="cd-block">⏱ 90 min</div>
+          </div>
+          <button class="gc-play" id="btn-block" onclick="playGame('block')" disabled>🔒</button>
+          <div class="gc-lock" id="lk-block">🔒 Bouw Lumber Mill</div>
+        </div>
+        <div class="gc" id="gc-react">
+          <div class="gc-ico">⚡</div>
+          <div class="gc-body">
+            <div class="gc-name">Reaction</div>
+            <div class="gc-desc">6 rondes. Reageer op goud voor $EMP!</div>
+            <div class="gc-tags"><span class="gt" style="border-color:rgba(201,168,76,.4);color:var(--gold)">🪙 $EMP DIRECT</span><span class="gt">120 min</span></div>
+            <div class="gc-cd" id="cd-react">⏱ 120 min</div>
+          </div>
+          <button class="gc-play" id="btn-react" onclick="playGame('react')" disabled>🔒</button>
+          <div class="gc-lock" id="lk-react">🔒 Bouw Forge</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHOP -->
+    <div class="cp-page" id="cp-shop">
+      <div class="sh-sec">
+        <div class="sh-t">⚡ COOLDOWN BOOSTS</div>
+        <div class="sh-grid">
+          <div class="sh-card" onclick="buyShop('b1')"><div class="sh-ico">⚡</div><div class="sh-name">Boost I · 4u</div><div class="sh-desc">-25% alle cooldowns</div><div class="sh-p"><span class="pr pr-t">0.10 TON</span><span class="pr pr-s">50 ⭐</span></div></div>
+          <div class="sh-card feat" onclick="buyShop('vip')"><div class="sh-ico">👑</div><div class="sh-name">VIP Dagspass</div><div class="sh-desc">-60% CD + 2× output</div><div class="sh-p"><span class="pr pr-t">0.75 TON</span><span class="pr pr-s">375 ⭐</span></div></div>
+          <div class="sh-card" onclick="buyShop('b2')"><div class="sh-ico">⚡⚡</div><div class="sh-name">Boost II · 8u</div><div class="sh-desc">-50% alle cooldowns</div><div class="sh-p"><span class="pr pr-t">0.25 TON</span><span class="pr pr-s">125 ⭐</span></div></div>
+          <div class="sh-card" onclick="buyShop('rst')"><div class="sh-ico">🔄</div><div class="sh-name">Quick Reset</div><div class="sh-desc">1 game direct reset</div><div class="sh-p"><span class="pr pr-t">0.05 TON</span><span class="pr pr-s">25 ⭐</span></div></div>
+        </div>
+      </div>
+      <div class="sh-sec">
+        <div class="sh-t">🎮 GAME UNLOCKS</div>
+        <div class="sh-grid">
+          <div class="sh-card" onclick="buyShop('ul-block')"><div class="sh-ico">🧱</div><div class="sh-name">Block Builder</div><div class="sh-desc">Direct unlock</div><div class="sh-p"><span class="pr pr-t">0.15 TON</span><span class="pr pr-s">50 ⭐</span></div></div>
+          <div class="sh-card" onclick="buyShop('ul-react')"><div class="sh-ico">⚡</div><div class="sh-name">Reaction</div><div class="sh-desc">Direct unlock</div><div class="sh-p"><span class="pr pr-t">0.30 TON</span><span class="pr pr-s">100 ⭐</span></div></div>
+        </div>
+      </div>
+      <div class="sh-sec">
+        <div class="sh-t">💎 PREMIUM</div>
+        <div class="sh-grid">
+          <div class="sh-card feat" onclick="buyShop('bp')"><div class="sh-ico">🏗️</div><div class="sh-name">Builder Pass</div><div class="sh-desc">+25% output + Boost II/dag</div><div class="sh-p"><span class="pr pr-t">2 TON</span><span class="pr pr-s">1000 ⭐</span></div></div>
+          <div class="sh-card feat" onclick="buyShop('ep')"><div class="sh-ico">👑</div><div class="sh-name">Empire Pass</div><div class="sh-desc">+50% output + Boost III/dag</div><div class="sh-p"><span class="pr pr-t">5 TON</span><span class="pr pr-s">2500 ⭐</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="cp-page" id="cp-stats">
+      <div style="background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:11px;margin-bottom:8px;">
+        <div style="font-family:Cinzel,serif;font-size:11px;color:var(--gold-b);margin-bottom:7px;">📊 Resources verdiend</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">🪨 Stone <span style="color:var(--gold-b)" id="st-s">0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">🪵 Wood <span style="color:var(--gold-b)" id="st-w">0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">🥇 Gold <span style="color:var(--gold-b)" id="st-g">0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">⚙️ Iron <span style="color:var(--gold-b)" id="st-iron">0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">💎 Crystal <span style="color:var(--gold-b)" id="st-crystal">0</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">🪙 $EMP <span style="color:var(--gold-b)" id="st-e">0</span></div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:11px;margin-bottom:8px;">
+        <div style="font-family:Cinzel,serif;font-size:11px;color:var(--gold-b);margin-bottom:7px;">🏛️ Gebouwen & Auto-Mine</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">Gebouwen <span style="color:var(--gold-b)" id="st-bld">0/5</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">Auto-Mine <span style="color:var(--gold-b)" id="st-am">Locked</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME MODAL -->
+<div id="gmod">
+  <div id="gmod-hdr">
+    <button id="gmod-back" onclick="closeGame()">← BACK</button>
+    <div id="gmod-title">GAME</div>
+    <div id="gmod-score" style="font-size:13px;font-weight:700;color:var(--gold-b)"></div>
+  </div>
+  <div id="gmod-body">
+
+    <!-- ⛏️ MINE DASH — swipe ore chunks falling from sky -->
+    <div id="g-tap" style="display:none;flex-direction:column;height:100%;background:radial-gradient(ellipse at 50% 0%,#1a1200,#05070e)">
+      <div id="tap-hud" style="display:flex;justify-content:space-between;padding:10px 16px;font-size:13px;font-weight:700">
+        <div>⛏️ <span id="ts-combo" style="color:var(--gold-b)">×1</span> COMBO</div>
+        <div id="ts-timer" style="color:var(--red)">30s</div>
+        <div>💎 <span id="ts-rare">0</span> rare</div>
+      </div>
+      <div id="tap-arena" style="flex:1;position:relative;overflow:hidden;cursor:crosshair"></div>
+      <div style="display:flex;justify-content:space-around;padding:10px 16px;background:rgba(0,0,0,.4)">
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="ts-s">0</div><div style="font-size:9px;color:var(--txt-d)">🪨 STONE</div></div>
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="ts-w">0</div><div style="font-size:9px;color:var(--txt-d)">🪵 WOOD</div></div>
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="ts-g">0</div><div style="font-size:9px;color:var(--txt-d)">🥇 GOLD</div></div>
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="ts-e">0</div><div style="font-size:9px;color:var(--txt-d)">🪙 EMP</div></div>
+      </div>
+    </div>
+
+    <!-- 🎯 TOWER DEFENSE — shoot waves of enemies -->
+    <div id="g-aim" style="display:none;flex-direction:column;height:100%;background:#05070e">
+      <canvas id="aim-canvas" style="flex:1;width:100%;touch-action:none"></canvas>
+      <div id="aim-hud" style="display:flex;justify-content:space-around;padding:8px 16px;background:rgba(0,0,0,.6)">
+        <div style="text-align:center"><div style="font-size:16px;font-weight:900;color:#ff4444" id="aim-lives">❤️❤️❤️</div><div style="font-size:9px;color:var(--txt-d)">LIVES</div></div>
+        <div style="text-align:center"><div style="font-size:16px;font-weight:900;color:var(--gold-b)" id="aim-wave">Wave 1</div><div style="font-size:9px;color:var(--txt-d)">WAVE</div></div>
+        <div style="text-align:center"><div style="font-size:16px;font-weight:900;color:var(--gold-b)" id="aim-sc">0</div><div style="font-size:9px;color:var(--txt-d)">SCORE</div></div>
+        <div style="text-align:center"><div style="font-size:16px;font-weight:900;color:#44ffaa" id="aim-gold">0🥇</div><div style="font-size:9px;color:var(--txt-d)">EARNED</div></div>
+      </div>
+    </div>
+
+    <!-- 🃏 RUNE MATCH — memory with animated reveals -->
+    <div id="g-mem" style="display:none;flex-direction:column;height:100%;background:radial-gradient(ellipse at 50% 30%,#0a0820,#05070e)">
+      <div id="mem-hud" style="display:flex;justify-content:space-around;padding:10px 16px">
+        <div style="text-align:center"><div class="mh-v" id="mh-mv" style="font-size:20px;font-weight:900;color:var(--gold-b)">0</div><div style="font-size:9px;color:var(--txt-d)">MOVES</div></div>
+        <div style="text-align:center"><div class="mh-v" id="mh-pr" style="font-size:20px;font-weight:900;color:var(--gold-b)">0/8</div><div style="font-size:9px;color:var(--txt-d)">PAIRS</div></div>
+        <div style="text-align:center"><div class="mh-v" id="mh-tm" style="font-size:20px;font-weight:900;color:var(--gold-b)">0s</div><div style="font-size:9px;color:var(--txt-d)">TIME</div></div>
+        <div style="text-align:center"><div id="mem-streak" style="font-size:20px;font-weight:900;color:#ff8800">×1</div><div style="font-size:9px;color:var(--txt-d)">STREAK</div></div>
+      </div>
+      <div id="mem-grid" style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;align-content:center"></div>
+      <div id="mem-msg" style="text-align:center;padding:8px;font-size:12px;color:var(--gold-b);font-weight:700;min-height:28px"></div>
+    </div>
+
+    <!-- 🧱 EMPIRE BUILDER — place falling resource blocks -->
+    <div id="g-block" style="display:none;flex-direction:column;height:100%;background:#05070e;align-items:center">
+      <div id="bh" style="display:flex;gap:20px;padding:10px 16px;width:100%;justify-content:center">
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="bh-sc">0</div><div style="font-size:9px;color:var(--txt-d)">SCORE</div></div>
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="bh-ln">0</div><div style="font-size:9px;color:var(--txt-d)">LINES</div></div>
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold-b)" id="bh-lv">1</div><div style="font-size:9px;color:var(--txt-d)">LEVEL</div></div>
+      </div>
+      <div id="bwrap" style="display:flex;gap:10px;align-items:flex-start">
+        <canvas id="bcanvas" width="180" height="320" style="border:1px solid rgba(201,168,76,.2);border-radius:4px"></canvas>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:9px;color:var(--txt-d);letter-spacing:1px">NEXT</div>
+          <canvas id="bnext" width="70" height="70" style="border:1px solid rgba(255,255,255,.1);border-radius:4px"></canvas>
+          <div id="bh-res" style="font-size:10px;color:var(--txt-d);line-height:1.6"></div>
+        </div>
+      </div>
+      <div id="bctrl" style="display:flex;gap:8px;padding:10px">
+        <div class="bc2" ontouchstart="bMv(-1);event.preventDefault()" onmousedown="bMv(-1)">◀</div>
+        <div class="bc2" ontouchstart="bRt();event.preventDefault()" onmousedown="bRt()">↻</div>
+        <div class="bc2" ontouchstart="bDp();event.preventDefault()" onmousedown="bDp()">▼▼</div>
+        <div class="bc2" ontouchstart="bMv(1);event.preventDefault()" onmousedown="bMv(1)">▶</div>
+      </div>
+    </div>
+
+    <!-- ⚡ LIGHTNING FORGE — rhythm-based smelting -->
+    <div id="g-react" style="display:none;flex-direction:column;height:100%;background:radial-gradient(ellipse at 50% 80%,#1a0800,#05070e);align-items:center;justify-content:space-around">
+      <div style="text-align:center">
+        <div id="react-rnd" style="font-size:11px;letter-spacing:3px;color:var(--txt-d)">ROUND 1 / 6</div>
+        <div id="react-title" style="font-family:Cinzel,serif;font-size:18px;color:var(--gold-b);margin-top:4px">⚡ LIGHTNING FORGE</div>
+      </div>
+      <div id="react-forge" style="position:relative;width:200px;height:200px">
+        <div id="react-c" style="width:100%;height:100%;border-radius:50%;background:#1a1008;border:3px solid #333;display:flex;align-items:center;justify-content:center;font-size:64px;cursor:pointer;transition:all .1s;user-select:none" ontouchstart="reactTap();event.preventDefault()" onclick="reactTap()">⚒️</div>
+        <div id="react-ring" style="position:absolute;inset:-8px;border-radius:50%;border:3px solid transparent;transition:all .15s;pointer-events:none"></div>
+      </div>
+      <div id="react-fb" style="font-size:22px;font-weight:900;min-height:32px;text-align:center"></div>
+      <div id="react-res" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 16px"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="result">
+  <div class="res-panel">
+    <div class="rp-t" id="rp-t">🎉 REWARDS!</div>
+    <div class="rp-s" id="rp-s"></div>
+    <div class="rp-rws" id="rp-rws"></div>
+    <button class="rp-c" onclick="collectResult()">🪙 COLLECT ALL</button>
+    <button class="rp-a" onclick="playAgain()">↩ Speel opnieuw</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- MYSTERY BOX POPUP -->
+<div id="mystery-box" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.85);align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <div style="font-size:72px;animation:bounce .6s infinite alternate">📦</div>
+  <div id="mystery-label" style="font-family:Cinzel,serif;font-size:20px;color:var(--gold-b);letter-spacing:2px">📦 Mystery Box!</div>
+  <button id="mystery-open" style="padding:14px 32px;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;font-family:Cinzel,serif;font-size:14px;font-weight:700;border-radius:12px;border:none;cursor:pointer;letter-spacing:1px">🎁 OPEN!</button>
+</div>
+<style>
+@keyframes bounce{0%{transform:scale(1) rotate(-5deg)}100%{transform:scale(1.15) rotate(5deg)}}
+</style>
+
+<!-- THREE.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════════
+const G = {
+  res:{stone:0,wood:0,gold:0,iron:0,crystal:0,mana:0,starstone:0,darkore:0,emp:0},
+  bld:{mine:false,lumber:false,forge:false,market:false,hq:false,smelter:false,workshop:false,academy:false,temple:false,treasury:false,observatory:false,alchemist:false,citadel:false,dragonforge:false,vault:false,portal:false,starforge:false,nexus:false,shadowkeep:false,empirebank:false},
+  cd:{tap:0,aim:0,mem:0,block:0,react:0},
+  stats:{stone:0,wood:0,gold:0,iron:0,crystal:0,mana:0,starstone:0,darkore:0,emp:0},
+  curGame:null, pending:{}, passiveIv:null, worldMode:'mine', era:1, eraXP:0,
+  // ── Economy systems ──
+  streak:0, lastLogin:0, streakClaimed:false,
+  quests:[], questsDate:'',
+  prestige:0, prestigeBonus:0,
+  upgrades:{mine:0,lumber:0,forge:0,market:0,hq:0,smelter:0,workshop:0,academy:0,temple:0,treasury:0},
+  mysteryBoxes:0, totalTaps:0, lastMystery:0, nextBoxAt:0,
+};
+const CAP=9999;
+const RES_ICO={stone:'🪨',wood:'🪵',gold:'🥇',iron:'⚙️',crystal:'💎',mana:'🔮',starstone:'⭐',darkore:'🌑',emp:'🪙'};
+function addRes(k,v){G.res[k]=Math.min(CAP,(G.res[k]||0)+Math.max(0,v));G.stats[k]=(G.stats[k]||0)+Math.max(0,v);}
+
+// Spec-accurate multipliers
+function mult(t){
+  const b=G.bld;
+  let rm=0;
+  // Era I-II
+  if(t==='stone'  &&b.mine)        rm+=0.25;
+  if(t==='wood'   &&b.lumber)      rm+=0.25;
+  if(t==='gold'   &&b.market)      rm+=0.50;
+  if(t==='iron'   &&b.smelter)     rm+=0.40;
+  if(t==='crystal'&&b.academy)     rm+=0.50;
+  if(t==='emp'    &&b.hq)          rm+=1.00;
+  if(t==='emp'    &&b.treasury)    rm+=0.75;
+  // Era III
+  if(t==='mana'   &&b.observatory) rm+=0.60;
+  if(t==='gold'   &&b.alchemist)   rm+=0.80;
+  if(t==='emp'    &&b.citadel)     rm+=1.50;
+  if(t==='iron'   &&b.dragonforge) rm+=1.00;
+  if(t==='emp'    &&b.vault)       rm+=1.00;
+  // Era IV
+  if(t==='starstone'&&b.starforge) rm+=0.80;
+  if(t==='emp'    &&b.portal)      rm+=2.00;
+  if(t==='crystal'&&b.nexus)       rm+=1.00;
+  // Era V
+  if(t==='darkore'&&b.shadowkeep)  rm+=0.90;
+  if(t==='emp'    &&b.empirebank)  rm+=3.00;
+  const globalBonus=
+    (b.forge?0.15:0)+(b.workshop?0.20:0)+(b.temple?0.10:0)+
+    (b.citadel?0.30:0)+(b.nexus?0.25:0)+(b.empirebank?0.50:0);
+  return (1+rm)*(1+globalBonus)*getPrestigeMultiplier();
+}
+function applyMult(v,t){return Math.max(0,Math.round(v*mult(t)));}
+
+// Passive per hour
+const PASS_DEF={mine:{stone:5},lumber:{wood:4},forge:{gold:3},market:{gold:10},hq:{emp:50},smelter:{iron:6},workshop:{stone:3,wood:3},academy:{crystal:2},temple:{emp:20},treasury:{emp:80},observatory:{mana:5},alchemist:{gold:15,mana:2},citadel:{emp:120},dragonforge:{iron:12,mana:3},vault:{emp:200},portal:{emp:300,starstone:1},starforge:{starstone:8},nexus:{crystal:5,mana:8},shadowkeep:{darkore:4,emp:150},empirebank:{emp:1000}};
+function passPerHour(){
+  let s=0,w=0,g=0,ir=0,cr=0,mn=0,st=0,dk=0,e=0;
+  for(const[b,r] of Object.entries(PASS_DEF)){
+    if(!G.bld[b]) continue;
+    s+=r.stone||0;w+=r.wood||0;g+=r.gold||0;ir+=r.iron||0;cr+=r.crystal||0;mn+=r.mana||0;st+=r.starstone||0;dk+=r.darkore||0;e+=r.emp||0;
+  }
+  return {stone:s,wood:w,gold:g,iron:ir,crystal:cr,mana:mn,starstone:st,darkore:dk,emp:e};
+}
+function startPassive(){
+  if(G.passiveIv) clearInterval(G.passiveIv);
+  G.passiveIv=setInterval(()=>{
+    const ph=passPerHour(), f=1/360;
+    ['stone','wood','gold','iron','crystal','mana','starstone','darkore','emp'].forEach(k=>{if(ph[k]>0)addRes(k,Math.max(1,Math.round(ph[k]*f)));});
+    updateHUD();
+  },10000);
+}
+
+// Cooldowns
+const CD_BASE={tap:30*60,aim:45*60,mem:60*60,block:90*60,react:120*60};
+function cdRed(g){
+  let r=0;
+  if(g==='tap'  &&G.bld.mine)   r+=0.15;
+  if(g==='aim'  &&G.bld.forge)  r+=0.15;
+  if(g==='mem'  &&G.bld.lumber) r+=0.20;
+  if(g==='block'&&G.bld.market) r+=0.20;
+  if(g==='react'&&G.bld.forge)  r+=0.20;
+  if(G.bld.hq) r+=0.10;
+  return Math.min(r,0.80);
+}
+function setCd(g){G.cd[g]=Date.now()+Math.round(CD_BASE[g]*(1-cdRed(g)))*1000;}
+function cdLeft(g){return Math.max(0,Math.ceil((G.cd[g]-Date.now())/1000));}
+function fmtCd(s){if(s<=0)return '<span style="color:var(--grn)">READY!</span>';const m=Math.floor(s/60),ss=s%60;return `<span style="color:var(--red)">⏳ ${m}:${String(ss).padStart(2,'0')}</span>`;}
+
+// ══ PERSPECTIVE CAMERA — smooth terrain world ══
+let camTarget={x:0,z:0};
+let camDist=22, camAngle=Math.PI*0.65;
+
+function initCamera(){
+  camera=new THREE.PerspectiveCamera(52,window.innerWidth/window.innerHeight,0.5,300);
+  window.addEventListener('resize',()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  });
+}
+function updateCam(){
+  camera.position.set(camTarget.x+camDist*Math.sin(camAngle), camDist*0.78, camTarget.z+camDist*Math.cos(camAngle));
+  camera.lookAt(camTarget.x,0,camTarget.z);
+}
+function camZ(d){ if(!camera)return; camDist=Math.max(8,Math.min(48,camDist+d*1.5)); }
+function camR(d){ camAngle+=d*0.35; }
+function resetCam(){ camTarget={x:0,z:0}; camDist=22; camAngle=Math.PI*0.65; }
+
+// ══ CANVAS TEXTURES ══
+function mkTex(fn,s=64){
+  const cv=document.createElement('canvas'); cv.width=cv.height=s;
+  fn(cv.getContext('2d'),s);
+  const t=new THREE.CanvasTexture(cv);
+  return t;
+}
+const TX={};
+function buildTextures(){
+  TX.wood=mkTex((x,s)=>{for(let y=0;y<s;y+=8){x.fillStyle=`hsl(25,${42+~~(Math.random()*14)}%,${32+~~(Math.random()*10)}%)`;x.fillRect(0,y,s,7);x.fillStyle='rgba(0,0,0,.18)';x.fillRect(0,y+7,s,1);}},64);
+  TX.wood.wrapS=TX.wood.wrapT=THREE.RepeatWrapping;
+  TX.stone=mkTex((x,s)=>{x.fillStyle='#c8b898';x.fillRect(0,0,s,s);for(let bx=0;bx<s;bx+=16)for(let by=0;by<s;by+=10){const ox=(by%20===0)?0:8;x.fillStyle=`hsl(38,${18+~~(Math.random()*12)}%,${56+~~(Math.random()*16)}%)`;x.fillRect(ox+bx,by,14,8);x.strokeStyle='rgba(0,0,0,.22)';x.lineWidth=1;x.strokeRect(ox+bx,by,14,8);}},64);
+  TX.stone.wrapS=TX.stone.wrapT=THREE.RepeatWrapping; TX.stone.repeat.set(2,2);
+  TX.white=mkTex((x,s)=>{x.fillStyle='#f0ece0';x.fillRect(0,0,s,s);for(let bx=0;bx<s;bx+=12)for(let by=0;by<s;by+=8){const ox=(by%16===0)?0:6;x.fillStyle=`hsl(40,${12+~~(Math.random()*10)}%,${82+~~(Math.random()*10)}%)`;x.fillRect(ox+bx,by,10,6);}},64);
+  TX.roof=mkTex((x,s)=>{x.fillStyle='#c82000';x.fillRect(0,0,s,s);for(let y=0;y<s;y+=6){x.fillStyle=`hsl(8,${65+~~(Math.random()*18)}%,${24+~~(Math.random()*10)}%)`;x.fillRect(0,y,s,5);x.fillStyle='rgba(0,0,0,.28)';x.fillRect(0,y+5,s,1);}},32);
+  TX.roof.wrapS=TX.roof.wrapT=THREE.RepeatWrapping;
+  TX.castle=mkTex((x,s)=>{x.fillStyle='#807868';x.fillRect(0,0,s,s);for(let bx=0;bx<s;bx+=20)for(let by=0;by<s;by+=12){const ox=(by%24===0)?0:10;x.fillStyle=`hsl(36,${7+~~(Math.random()*6)}%,${42+~~(Math.random()*12)}%)`;x.fillRect(ox+bx+1,by+1,18,10);x.strokeStyle='rgba(0,0,0,.3)';x.lineWidth=.8;x.strokeRect(ox+bx+1,by+1,18,10);}},64);
+  TX.castle.wrapS=TX.castle.wrapT=THREE.RepeatWrapping; TX.castle.repeat.set(2,2);
+  TX.path=mkTex((x,s)=>{x.fillStyle='#d8bc6a';x.fillRect(0,0,s,s);for(let i=0;i<60;i++){x.fillStyle=`rgba(0,0,0,${0.04+Math.random()*0.09})`;x.fillRect(~~(Math.random()*s),~~(Math.random()*s),2+~~(Math.random()*3),1+~~(Math.random()*2));}},32);
+  TX.path.wrapS=TX.path.wrapT=THREE.RepeatWrapping;
+}
+
+function lm(col,tex,emI){
+  const m=new THREE.MeshLambertMaterial({color:col,map:tex||null});
+  if(emI){m.emissive=new THREE.Color(col);m.emissiveIntensity=emI;}
+  return m;
+}
+function bx(w,h,d){return new THREE.BoxGeometry(w,h,d);}
+function cyl(r,h,seg){return new THREE.CylinderGeometry(r,r,h,seg||8);}
+function cone(r,h,seg){return new THREE.CylinderGeometry(0,r,h,seg||8);}
+function mk(geo,col,tex,emI){const m=new THREE.Mesh(geo,lm(col,tex,emI));m.castShadow=true;m.receiveShadow=true;return m;}
+function place(parent,m,x,y,z,ry){m.position.set(x,y,z);if(ry!==undefined)m.rotation.y=ry;parent.add(m);return m;}
+
+// ══ SMOOTH TERRAIN ══
+const TSIZE=80, TSEG=48;
+function sampleH(x,z){
+  return Math.sin(x*0.13)*2.2+Math.cos(z*0.11)*1.8+Math.sin(x*0.27+z*0.19)*0.9+Math.cos(x*0.09-z*0.22)*1.1;
+}
+let parkGroup;
+function buildTerrain(){
+  parkGroup=new THREE.Group(); scene.add(parkGroup);
+  const geo=new THREE.PlaneGeometry(TSIZE,TSIZE,TSEG,TSEG);
+  geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position;
+  for(let i=0;i<pos.count;i++) pos.setY(i,sampleH(pos.getX(i),pos.getZ(i)));
+  geo.computeVertexNormals();
+  const colors=[];
+  for(let i=0;i<pos.count;i++){
+    const y=pos.getY(i);
+    colors.push(0.18+Math.random()*0.06, 0.35+Math.random()*0.12+(y>1?0.06:0), 0.12+Math.random()*0.05);
+  }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  terrainMesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));
+  terrainMesh.receiveShadow=true; scene.add(terrainMesh);
+  const wgeo=new THREE.PlaneGeometry(TSIZE*1.5,TSIZE*1.5);
+  wgeo.rotateX(-Math.PI/2);
+  const water=new THREE.Mesh(wgeo,new THREE.MeshLambertMaterial({color:0x3a8ac0,transparent:true,opacity:0.78}));
+  water.position.y=-1.8; scene.add(water);
+  const sgeo=new THREE.PlaneGeometry(TSIZE*1.08,TSIZE*1.08);
+  sgeo.rotateX(-Math.PI/2);
+  const shore=new THREE.Mesh(sgeo,new THREE.MeshLambertMaterial({color:0xe8d080}));
+  shore.position.y=-1.2; scene.add(shore);
+  [[{w:3,d:TSIZE}],[{w:TSIZE,d:3}]].flat().forEach((p,i)=>{
+    const pg=new THREE.PlaneGeometry(i===0?3:TSIZE,i===0?TSIZE:3,1,TSEG);
+    pg.rotateX(-Math.PI/2);
+    const pp=pg.attributes.position;
+    for(let j=0;j<pp.count;j++) pp.setY(j,sampleH(pp.getX(j),pp.getZ(j))+0.05);
+    pg.computeVertexNormals();
+    scene.add(new THREE.Mesh(pg,new THREE.MeshLambertMaterial({color:0xd4b870,map:TX.path})));
+  });
+}
+let terrainMesh;
+
+// ══ TREES ══
+function buildDecorations(){
+  const spots=[[-16,-4,1],[-14,-10,0],[-18,-14,1],[-10,-18,0],[-20,0,1],[-18,8,0],[-14,14,1],[-8,18,0],[-20,14,1],[-22,-6,0],[-20,-18,1],[-6,-20,0],[0,-18,1],[6,-20,0],[14,-16,1],[18,-10,0],[20,0,1],[18,8,0],[20,14,1],[14,18,1],[8,20,0],[0,20,1],[-6,18,0],[-12,18,1],[10,-20,0],[12,-14,0],[-4,-16,1],[16,4,0],[16,-4,1],[-16,4,0],[-10,6,0],[-12,10,1],[-8,12,0],[10,10,1],[12,6,0],[10,-8,0],[-8,-12,1],[4,14,0],[-3,-8,0],[8,-4,0],[-5,4,0],[3,8,0],[6,2,0],[-7,0,0],[0,6,0],[4,-6,0]];
+  spots.forEach(([tx,tz,big])=>{
+    if(Math.abs(tx)<4&&Math.abs(tz)<4) return;
+    const g=new THREE.Group();
+    const th=big?4+Math.random()*2.5:2.5+Math.random()*2;
+    place(g,mk(cyl(big?0.28:0.18,th,6),big?0x6B4226:0x7a5030,TX.wood),0,th/2,0);
+    const treeCols=[0x258018,0x1e6814,0x2a9020,0x228822,0x1a7818];
+    for(let ci=0;ci<(big?3:2);ci++){
+      const cr=big?1.8-ci*0.35:1.2-ci*0.25;
+      place(g,mk(cone(cr,cr*1.5,7),treeCols[ci%treeCols.length]),0,th+ci*0.95,0);
+    }
+    g.position.set(tx,sampleH(tx,tz),tz); g.rotation.y=Math.random()*Math.PI*2; scene.add(g);
+  });
+  for(let i=-8;i<=8;i+=4){
+    [[i,3],[i,-3],[3,i],[-3,i]].forEach(([lx,lz])=>{
+      const gy=sampleH(lx,lz), g=new THREE.Group();
+      place(g,mk(cyl(0.09,4,6),0x909088,null),0,2,0);
+      place(g,mk(bx(0.4,0.3,0.4),0x707068,null),0,4.1,0);
+      const lb=mk(new THREE.SphereGeometry(0.22,8,8),0xffee80,null,0.7); lb.position.set(0,4.1,0); g.add(lb);
+      const ll=new THREE.PointLight(0xffee80,0.7,7); ll.position.y=4.1; g.add(ll);
+      g.position.set(lx,gy,lz); scene.add(g);
+    });
+  }
+}
+
+// ══ RESOURCE NODES ══
+let resourceNodes=[];
+function buildResourceNodes(){
+  resourceNodes=[];
+  function addStone(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();const r=0.7+Math.random()*0.4;place(g,mk(new THREE.DodecahedronGeometry(r,0),0xa09880,null),0,r*0.7,0);place(g,mk(new THREE.DodecahedronGeometry(r*.55,0),0x908878,null),r*.85,r*.35,.4);place(g,mk(new THREE.DodecahedronGeometry(r*.4,0),0xb0a898,null),-r*.65,r*.25,-.3);g.position.set(tx,gy,tz);g.userData={type:'stone',hp:5};scene.add(g);resourceNodes.push(g);}
+  function addWood(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();const cols=[0x8B5E3C,0x7a5030,0x9B6E4C];for(let i=0;i<3;i++){const log=mk(cyl(0.28+Math.random()*.08,1.6+Math.random()*.8,7),cols[i%cols.length],TX.wood);log.position.set((Math.random()-.5)*1.2,.45+Math.random()*.5,(Math.random()-.5));log.rotation.set(Math.PI/2+(Math.random()-.5)*.4,Math.random()*Math.PI,0);g.add(log);}place(g,mk(cyl(.22,.55,8),0x6B4226,null),0,.28,0);g.position.set(tx,gy,tz);g.userData={type:'wood',hp:5};scene.add(g);resourceNodes.push(g);}
+  function addGold(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();for(let i=0;i<4+~~(Math.random()*3);i++){const cr=mk(new THREE.OctahedronGeometry(.3+Math.random()*.28,0),0xf5c830,null);cr.position.set((Math.random()-.5)*1.5,.3+Math.random()*.8,(Math.random()-.5)*1.5);cr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);cr.userData.isGoldCrystal=true;g.add(cr);}const pl=new THREE.PointLight(0xffd060,1.5,5);pl.position.y=1;g.add(pl);g.position.set(tx,gy,tz);g.userData={type:'gold',hp:5};scene.add(g);resourceNodes.push(g);}
+  function addIron(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();const r=0.65+Math.random()*.35;place(g,mk(new THREE.DodecahedronGeometry(r,0),0x778899,null),0,r*.7,0);place(g,mk(new THREE.DodecahedronGeometry(r*.6,0),0x8899aa,null),r*.9,r*.35,.3);g.position.set(tx,gy,tz);g.userData={type:'iron',hp:5};scene.add(g);resourceNodes.push(g);}
+  function addCrystal(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();for(let i=0;i<5+~~(Math.random()*4);i++){const cr=mk(new THREE.OctahedronGeometry(.25+Math.random()*.3,0),0x8855ff,null);cr.position.set((Math.random()-.5)*1.6,.25+Math.random()*.9,(Math.random()-.5)*1.6);cr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);cr.userData.isGoldCrystal=true;g.add(cr);}const pl=new THREE.PointLight(0x8844ff,1.4,5);pl.position.y=1;g.add(pl);place(g,mk(new THREE.DodecahedronGeometry(.7,0),0x332255,null),0,.25,0);g.position.set(tx,gy,tz);g.userData={type:'crystal',hp:6};scene.add(g);resourceNodes.push(g);}
+  function addMana(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();const pool=mk(new THREE.CylinderGeometry(1.2,1.4,0.3,12),0x2233dd,null);pool.material.transparent=true;pool.material.opacity=0.75;pool.position.set(0,0.15,0);g.add(pool);for(let i=0;i<6;i++){const orb=mk(new THREE.SphereGeometry(0.2+Math.random()*0.15,7,7),0x4466ff,null,0.7);orb.position.set((Math.random()-.5)*2,0.4+Math.random()*0.8,(Math.random()-.5)*2);orb.userData.isGoldCrystal=true;g.add(orb);}const pl=new THREE.PointLight(0x3355ff,2,6);pl.position.y=1;g.add(pl);g.position.set(tx,gy,tz);g.userData={type:'mana',hp:6};scene.add(g);resourceNodes.push(g);}
+  function addStar(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();for(let i=0;i<4;i++){const sh=mk(new THREE.DodecahedronGeometry(0.4+Math.random()*0.3,1),0xffee44,null,0.9);sh.position.set((Math.random()-.5)*1.8,0.4+Math.random()*1.2,(Math.random()-.5)*1.8);sh.userData.isGoldCrystal=true;g.add(sh);}const pl=new THREE.PointLight(0xffee44,2.5,7);pl.position.y=1.5;g.add(pl);place(g,mk(new THREE.DodecahedronGeometry(0.9,0),0xbb9900,null),0,0.5,0);g.position.set(tx,gy,tz);g.userData={type:'starstone',hp:8};scene.add(g);resourceNodes.push(g);}
+  function addDark(tx,tz){const gy=sampleH(tx,tz);const g=new THREE.Group();for(let i=0;i<5;i++){const sh=mk(new THREE.OctahedronGeometry(0.35+Math.random()*0.25,0),0x220033,null);sh.material.emissive=new THREE.Color(0x6600aa);sh.material.emissiveIntensity=0.6;sh.position.set((Math.random()-.5)*2,0.3+Math.random()*1.2,(Math.random()-.5)*2);sh.userData.isGoldCrystal=true;g.add(sh);}const pl=new THREE.PointLight(0x8800ff,2,8);pl.position.y=1;g.add(pl);g.position.set(tx,gy,tz);g.userData={type:'darkore',hp:10};scene.add(g);resourceNodes.push(g);}
+
+  [[-18,-2],[-16,-12],[-20,10],[-14,16],[-20,-16],[-8,-20],[0,-22],[8,-20],[16,-16],[20,-10],[22,2],[20,12],[16,18],[8,22],[0,22],[-8,20],[-16,16],[-22,6],[-22,-8],[14,0]].forEach(([tx,tz])=>addStone(tx,tz));
+  [[-12,-6],[-20,-4],[-18,4],[-10,-16],[-20,18],[4,-18],[12,-12],[18,-4],[20,6],[14,12],[6,18],[-4,20],[-12,14],[-16,6],[-8,10],[10,4],[4,-12],[18,-16],[-4,12],[8,-16]].forEach(([tx,tz])=>addWood(tx,tz));
+  [[-18,-18],[-14,-20],[-6,-18],[6,-16],[16,-20],[20,-14],[18,-4],[16,16],[4,20],[-14,18],[-20,-12],[0,18]].forEach(([tx,tz])=>addGold(tx,tz));
+  [[-13,-3],[-17,-9],[-15,5],[-9,-15],[-19,15],[3,-15],[11,-9],[17,-1],[19,9],[13,15],[5,17],[-3,19],[-11,13],[-17,9],[9,-17],[1,-21]].forEach(([tx,tz])=>addIron(tx,tz));
+  [[-21,-5],[-17,-19],[-5,-21],[9,-21],[21,-17],[21,5],[17,19],[5,21],[-9,21],[-21,11]].forEach(([tx,tz])=>addCrystal(tx,tz));
+  [[-24,-8],[-22,12],[-8,-24],[12,-22],[24,4],[22,-12],[-4,24],[8,24],[-24,16],[18,-22]].forEach(([tx,tz])=>addMana(tx,tz));
+  [[-26,-6],[24,-18],[-18,24],[6,26],[-26,10],[18,22],[-10,-26],[26,-8],[2,-28],[28,2]].forEach(([tx,tz])=>addStar(tx,tz));
+  [[-28,-10],[26,14],[-14,26],[10,-28],[-28,18],[22,-24],[0,30],[-30,0],[16,28],[-20,-28]].forEach(([tx,tz])=>addDark(tx,tz));
+}
+
+// ══ BUILDINGS ══
+let buildingMeshes={};
+function bld_mine(){const g=new THREE.Group();place(g,mk(bx(5,.4,5),0xc8b898,TX.stone),.5,.2,.5);[[.4,.4],[3.6,.4],[.4,3.6],[3.6,3.6]].forEach(([px,pz])=>place(g,mk(bx(.5,4.2,.5),0x8B5E3C,TX.wood),px,2.3,pz));place(g,mk(bx(4.2,.38,.38),0x7a5030,TX.wood),2,4.1,.4);place(g,mk(bx(4.2,.38,.38),0x7a5030,TX.wood),2,4.1,3.6);place(g,mk(bx(.38,.38,4.2),0x7a5030,TX.wood),.4,4.1,2);place(g,mk(bx(.38,.38,4.2),0x7a5030,TX.wood),3.6,4.1,2);place(g,mk(cone(2.9,2.4,4),0xcc2200,TX.roof),2,5.4,2,Math.PI/4);place(g,mk(bx(1.5,.18,1.5),0x221808,null),2,.39,2);place(g,mk(bx(1.1,.6,.7),0xdd9900,null),2,.7,2);place(g,mk(bx(3.5,.08,.1),0x666,null),2,.44,1.6);place(g,mk(bx(3.5,.08,.1),0x666,null),2,.44,2.4);place(g,mk(cyl(.06,1.8,4),0x8B5E3C,null),2,6.35,2);const fl=place(g,mk(bx(.9,.5,.07),0xff2200,null),2.5,6.9,2);fl.userData.isFlag=true;return g;}
+function bld_lumber(){const g=new THREE.Group();place(g,mk(bx(7,.4,5.5),0xd4b870,TX.path),1,.2,.5);place(g,mk(bx(7,3.2,.4),0xf0ece0,TX.white),1,1.8,.2);place(g,mk(bx(7,3.2,.4),0xf0ece0,TX.white),1,1.8,5.3);place(g,mk(bx(.4,3.2,5.5),0xf0ece0,TX.white),-2.3,1.8,.5);place(g,mk(bx(.4,3.2,5.5),0xf0ece0,TX.white),4.3,1.8,.5);const r1=place(g,mk(bx(7.5,.3,3.2),0xcc2200,TX.roof),1,3.7,.8);r1.rotation.x=.5;const r2=place(g,mk(bx(7.5,.3,3.2),0xcc2200,TX.roof),1,3.7,4.2);r2.rotation.x=-.5;place(g,mk(bx(7.5,.28,.28),0x991800,null),1,4.8,2.5);place(g,mk(bx(1.2,2.2,.42),0x224488,null),1,1.2,.01);[[-1.5,1.8],[3.5,1.8]].forEach(([wx,wy])=>place(g,mk(bx(1,.8,.42),0xddbb00,null),1+wx,wy,.01));[0,.55,1.1,1.65].forEach(dy=>place(g,mk(cyl(.28,2,7),0x8B5E3C,TX.wood),-2.8,.35+dy,.5,0,0,Math.PI/2));const saw=place(g,mk(cyl(1.1,.18,14),0xdddddd,null),5.2,1.8,2.5,Math.PI/2);saw.userData.isSaw=true;for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const t=mk(bx(.22,.22,.2),0xcccccc,null);t.position.set(5.2+Math.cos(a)*1.1,1.8+Math.sin(a)*1.1,2.5);t.userData.isSaw=true;g.add(t);}place(g,mk(cyl(.06,2,4),0x8B5E3C,null),1,6,2.5);const fl=place(g,mk(bx(1,.55,.07),0x228833,null),1.55,6.6,2.5);fl.userData.isFlag=true;return g;}
+function bld_forge(){const g=new THREE.Group();place(g,mk(bx(6,.45,6),0x888070,TX.castle),1,.22,1);place(g,mk(bx(6,3.8,6),0x787060,TX.castle),1,2.15,1);place(g,mk(bx(1.8,2.8,.44),0x181208,null),1,1.55,-1.05);place(g,mk(new THREE.CylinderGeometry(.9,.9,.44,8,1,false,0,Math.PI),0x787060,null),1,3.0,-1.05,Math.PI/2);[[-0.5,-0.5],[2.5,2.5]].forEach(([cx,cz])=>{place(g,mk(cyl(.55,4.5,8),0x555048,TX.castle),cx,4.2,cz);place(g,mk(cyl(.65,.35,8),0x333028,null),cx,6.47,cz);const e=mk(new THREE.SphereGeometry(.38,8,8),0xff3300,null,.9);e.position.set(cx,6.65,cz);e.userData.isEmber=true;g.add(e);const pl=new THREE.PointLight(0xff4400,2,7);pl.position.set(cx,7,cz);pl.userData.isEmberLight=true;g.add(pl);});place(g,mk(bx(6.5,.4,6.5),0x888070,TX.castle),1,4.22,1);for(let i=0;i<5;i++){place(g,mk(bx(.65,.85,.65),0x9a9080,null),-1+i*1.2,4.85,-1.1);place(g,mk(bx(.65,.85,.65),0x9a9080,null),-1+i*1.2,4.85,3.1);}place(g,mk(bx(.9,.4,.55),0x333,null),1,4.62,1);place(g,mk(bx(.6,.6,.4),0x3a3a3a,null),1,4.2,1);place(g,mk(cyl(.06,2.2,4),0x444,null),1,5.7,1);const fl=place(g,mk(bx(1.1,.6,.07),0xff4400,null),1.6,6.45,1);fl.userData.isFlag=true;return g;}
+function bld_market(){const g=new THREE.Group();place(g,mk(bx(10,.3,8),0xd4b870,TX.path),3,.15,2.5);[[0,0,0xcc2200],[3.5,0,0x2244cc],[7,0,0x228833]].forEach(([ox,_oc,rc])=>{place(g,mk(bx(3,3,.3),0xf0ece0,TX.white),ox,1.5,6.9);place(g,mk(bx(.3,3,4),0xf0ece0,TX.white),ox-1.4,1.5,4.5);place(g,mk(bx(.3,3,4),0xf0ece0,TX.white),ox+1.4,1.5,4.5);place(g,mk(bx(3.4,.22,4.5),rc,TX.roof),ox,3.3,4.5);place(g,mk(bx(2.6,.28,1),0xd4a060,TX.wood),ox,1.15,3.3);[0xf5c842,0xff4488,0x44ccff,0x88ff44].forEach((gc,gi)=>place(g,mk(new THREE.SphereGeometry(.22,6,6),gc,null),ox+(gi%2*.6-.3),1.45,3.3+(Math.floor(gi/2)*.5)));});place(g,mk(cyl(1.2,.7,12),0xc8b898,TX.stone),3,.35,2.5);place(g,mk(cyl(.8,.5,10),0xd8c8a8,TX.stone),3,.85,2.5);place(g,mk(cyl(.08,2,4),0xaaa8a0,null),3,1.5,2.5);const wt=mk(new THREE.SphereGeometry(.25,8,8),0x60c0ff,null,.4);wt.position.set(3,2.5,2.5);g.add(wt);const wl=new THREE.PointLight(0x60c0ff,.8,4);wl.position.set(3,2,2.5);g.add(wl);place(g,mk(cyl(.06,3.5,4),0x8B5E3C,null),3,2.2,2.5);const fl=place(g,mk(bx(1.8,.9,.07),0xf5c842,null),3.95,3.75,2.5);fl.userData.isFlag=true;return g;}
+function bld_hq(){const g=new THREE.Group();place(g,mk(bx(12,.45,12),0xc8b898,TX.stone),4.5,.22,4.5);place(g,mk(bx(5.5,8.5,5.5),0xc8b898,TX.stone),4.5,4.7,4.5);[-0.5,.7,1.9,3.1,4.3].forEach(o=>{place(g,mk(bx(.75,1,.75),0xd8c8a8,null),2.3+o,9.4,2.3);place(g,mk(bx(.75,1,.75),0xd8c8a8,null),2.3+o,9.4,6.7);place(g,mk(bx(.75,1,.75),0xd8c8a8,null),2.3,9.4,2.3+o);place(g,mk(bx(.75,1,.75),0xd8c8a8,null),6.7,9.4,2.3+o);});[[0,0],[9,0],[0,9],[9,9]].forEach(([tx,tz])=>{place(g,mk(cyl(1.3,10.5,10),0xd0c090,TX.stone),tx,5.25,tz);place(g,mk(cone(1.6,2.8,10),0xcc2200,TX.roof),tx,11.4,tz);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;place(g,mk(bx(.4,.8,.4),0xd8c8a8,null),tx+Math.cos(a)*1.28,10.7,tz+Math.sin(a)*1.28);}});place(g,mk(bx(9,4,.7),0xc8b898,TX.stone),4.5,2.5,.35);place(g,mk(bx(9,4,.7),0xc8b898,TX.stone),4.5,2.5,8.65);place(g,mk(bx(.7,4,9),0xc8b898,TX.stone),.35,2.5,4.5);place(g,mk(bx(.7,4,9),0xc8b898,TX.stone),8.65,2.5,4.5);place(g,mk(bx(3,4.5,.72),0xc8b898,TX.stone),4.5,2.75,.3);place(g,mk(bx(1.8,3.5,.75),0x112244,null),4.5,2.2,.28);for(let i=0;i<5;i++)place(g,mk(bx(.09,3.4,.09),0x555,null),3.8+i*.4,2.1,.27);[-1.5,-.3,.9,2.1,3.3].forEach(o=>{place(g,mk(bx(.7,.9,.7),0xd0c090,null),4.5+o*1.1,4.7,.35);place(g,mk(bx(.7,.9,.7),0xd0c090,null),4.5+o*1.1,4.7,8.65);});place(g,mk(cyl(.12,4.5,6),0xc9a84c,null),4.5,11.2,4.5);place(g,mk(cone(.5,1.6,6),0xc9a84c,null),4.5,13.25,4.5);const fl=place(g,mk(bx(2.2,1.1,.09),0xc9a84c,null),5.6,13.2,4.5);fl.material.emissive=new THREE.Color(0xc9a84c);fl.material.emissiveIntensity=.5;fl.userData.isFlag=true;return g;}
+function bld_smelter(){const g=new THREE.Group();place(g,mk(bx(5,.4,5),0x888070,TX.stone),.5,.2,.5);place(g,mk(bx(5,2.8,5),0x707060,TX.castle),.5,1.6,.5);[[.5,.5],[2.5,.5],[1.5,2.5]].forEach(([cx,cz])=>{place(g,mk(cyl(.5,3.5,8),0x505040,TX.castle),cx,3.4,cz);place(g,mk(cyl(.6,.3,8),0x302820,null),cx,5.2,cz);const e=mk(new THREE.SphereGeometry(.35,8,8),0xff5500,null,.9);e.position.set(cx,5.35,cz);e.userData.isEmber=true;g.add(e);const pl=new THREE.PointLight(0xff6600,1.5,5);pl.position.set(cx,5.6,cz);pl.userData.isEmberLight=true;g.add(pl);});for(let i=0;i<4;i++){const ing=mk(bx(.5,.25,.28),0x8899aa,null);ing.position.set(-0.6+i*.4,.53,(i%2)*.3);g.add(ing);}place(g,mk(bx(5.5,.38,5.5),0x808070,TX.castle),.5,3.2,.5);for(let i=0;i<4;i++)place(g,mk(bx(.6,.8,.6),0x909080,null),-.2+i*1.4,3.75,-.2);place(g,mk(cyl(.06,1.8,4),0x444,null),.5,4.7,.5);const fl=place(g,mk(bx(.9,.5,.07),0xff6600,null),.95,5.35,.5);fl.userData.isFlag=true;return g;}
+function bld_workshop(){const g=new THREE.Group();place(g,mk(bx(8,.38,5),0xd4b870,TX.path),2.5,.19,1.5);place(g,mk(bx(8,3,.3),0xf0ece0,TX.white),2.5,1.65,.15);place(g,mk(bx(8,3,.3),0xf0ece0,TX.white),2.5,1.65,4.85);place(g,mk(bx(.3,3,5),0xf0ece0,TX.white),-1.65,1.65,2.5);place(g,mk(bx(.3,3,5),0xf0ece0,TX.white),6.65,1.65,2.5);[-.8,.8,2.5,4.8].forEach(wx=>{place(g,mk(bx(.18,3,.18),0x6B4226,null),wx,1.65,.15);place(g,mk(bx(.18,3,.18),0x6B4226,null),wx,1.65,4.85);});const r1=place(g,mk(bx(8.5,.3,3),0xcc2200,TX.roof),2.5,3.65,.8);r1.rotation.x=.48;const r2=place(g,mk(bx(8.5,.3,3),0xcc2200,TX.roof),2.5,3.65,4.2);r2.rotation.x=-.48;place(g,mk(bx(8.5,.25,.25),0x991800,null),2.5,4.75,2.5);place(g,mk(bx(1.1,2.2,.35),0x224488,null),2.5,1.2,.01);[[-1.5,1.8],[1.5,1.8],[4.5,1.8]].forEach(([wx,wy])=>place(g,mk(bx(.9,.75,.35),0xddbb00,null),2.5+wx,wy,.01));place(g,mk(bx(.8,.35,.5),0x333,null),-1.2,.56,2.5);place(g,mk(bx(.55,.55,.35),0x3a3a3a,null),-1.2,.2,2.5);const gear=place(g,mk(cyl(1,.2,12),0x889aaa,null),7.2,1.8,2.5,Math.PI/2);gear.userData.isSaw=true;for(let i=0;i<12;i++){const a=i/12*Math.PI*2;const t=mk(bx(.24,.24,.22),0x778899,null);t.position.set(7.2+Math.cos(a)*.98,1.8+Math.sin(a)*.98,2.5);t.userData.isSaw=true;g.add(t);}place(g,mk(cyl(.06,2,4),0x8B5E3C,null),2.5,6,2.5);const fl=place(g,mk(bx(1.1,.55,.07),0x3388ff,null),3.1,6.6,2.5);fl.userData.isFlag=true;return g;}
+function bld_academy(){const g=new THREE.Group();place(g,mk(new THREE.CylinderGeometry(3.2,3.5,.5,8),0xd8c8a8,TX.stone),0,.25,0);place(g,mk(new THREE.CylinderGeometry(2.6,3,7,8),0xf0ece0,TX.white),0,4,0);place(g,mk(new THREE.CylinderGeometry(2,2.6,3,8),0xe8e0d0,TX.white),0,9,0);place(g,mk(new THREE.SphereGeometry(2.1,10,8,0,Math.PI*2,0,Math.PI/2),0x2244aa,null),0,11.2,0);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const w=mk(bx(.7,1.2,.32),0x1a2840,null);w.position.set(Math.cos(a)*2.55,5.5,Math.sin(a)*2.55);w.rotation.y=a;g.add(w);}const cryst=mk(new THREE.OctahedronGeometry(.6,0),0x88aaff,null,.4);cryst.position.set(0,12.2,0);cryst.userData.isGoldCrystal=true;g.add(cryst);const cl=new THREE.PointLight(0x6688ff,1.8,8);cl.position.set(0,12.5,0);g.add(cl);for(let i=0;i<4;i++){const a=i/4*Math.PI*2+Math.PI/4;place(g,mk(bx(.5,5,.6),0xe0d8c8,TX.stone),Math.cos(a)*3.1,2.5,Math.sin(a)*3.1,a);}place(g,mk(cyl(.07,3,4),0xaaaaaa,null),0,12.5,0);const fl=place(g,mk(bx(1.4,.7,.08),0xaa44ff,null),.75,13.35,0);fl.userData.isFlag=true;return g;}
+function bld_temple(){const g=new THREE.Group();place(g,mk(new THREE.CylinderGeometry(4.5,5,.4,8),0xc8b898,TX.stone),0,.2,0);place(g,mk(new THREE.CylinderGeometry(3.8,4.5,.35,8),0xd0c0a0,TX.stone),0,.57,0);place(g,mk(new THREE.CylinderGeometry(3,3.6,4,8),0xd4aa40,TX.stone),0,2.55,0);[[3.5,4.7],[2.8,7.4],[2,9.5]].forEach(([r,y])=>{place(g,mk(cone(r,1.8,8),0xc9a84c,TX.roof),0,y,0);place(g,mk(new THREE.CylinderGeometry(r*.9,r*1.05,.25,8),0xb8942c,null),0,y-.7,0);});place(g,mk(cyl(.2,2.5,6),0xc9a84c,null),0,11,0);place(g,mk(cone(.6,1.2,6),0xc9a84c,null),0,12.3,0);const top=mk(new THREE.SphereGeometry(.3,8,8),0xffdd00,null,.8);top.position.set(0,13,0);top.userData.isGoldCrystal=true;g.add(top);const tl=new THREE.PointLight(0xffcc00,1.5,8);tl.position.set(0,13,0);g.add(tl);for(let i=0;i<4;i++){const a=i/4*Math.PI*2;place(g,mk(cyl(.12,1.5,6),0xb8942c,null),Math.cos(a)*3.8,2.3,Math.sin(a)*3.8);}const fl=place(g,mk(bx(1.3,.65,.08),0xf5c842,null),.7,13.5,0);fl.userData.isFlag=true;return g;}
+function bld_treasury(){const g=new THREE.Group();place(g,mk(bx(9,.55,9),0xc8b898,TX.stone),3,.28,3);place(g,mk(bx(7,5,7),0xd0c090,TX.stone),3,3.05,3);[-1.5,0,1.5,3,4.5].forEach(cx=>place(g,mk(cyl(.28,5,8),0xe8dfc8,TX.stone),cx+3,3.05,-.5));place(g,mk(bx(8,.5,1.2),0xd8c8a8,TX.stone),3,5.65,-.5);place(g,mk(cone(4.5,2.2,4),0xc8b898,TX.stone),3,6.8,3,Math.PI/4);place(g,mk(new THREE.SphereGeometry(2.8,12,8,0,Math.PI*2,0,Math.PI/2),0xb8a860,null),3,7.8,3);place(g,mk(cyl(.12,3,6),0xc9a84c,null),3,10,3);place(g,mk(cone(.55,1.4,6),0xc9a84c,null),3,11.6,3);const coin=mk(new THREE.CylinderGeometry(.45,.45,.18,12),0xf5c842,null,.8);coin.position.set(3,12.6,3);coin.userData.isGoldCrystal=true;g.add(coin);const gl=new THREE.PointLight(0xffd060,2.5,10);gl.position.set(3,12.8,3);g.add(gl);[[-0.5,-0.5],[6.5,-0.5],[-0.5,6.5],[6.5,6.5]].forEach(([tx,tz])=>{place(g,mk(cyl(.8,6.5,8),0xd0c090,TX.stone),tx+3,3.25,tz+3);place(g,mk(cone(1,1.8,8),0xb8a860,null),tx+3,6.7,tz+3);});place(g,mk(bx(2,3,.5),0x332200,null),3,1.7,-.28);const fl=place(g,mk(bx(2.2,1,.09),0xc9a84c,null),4.15,13.1,3);fl.material.emissive=new THREE.Color(0xc9a84c);fl.material.emissiveIntensity=.5;fl.userData.isFlag=true;return g;}
+function bld_observatory(){const g=new THREE.Group();place(g,mk(new THREE.CylinderGeometry(3,3.5,.5,12),0xc8b898,TX.stone),0,.25,0);place(g,mk(new THREE.CylinderGeometry(2.5,3,5,12),0xd8d0c0,TX.white),0,3,0);place(g,mk(new THREE.SphereGeometry(2.5,12,8,0,Math.PI*2,0,Math.PI/2),0x2244aa,null),0,6,0);place(g,mk(bx(4.8,.3,1.2),0x334488,null),0,6.8,0);place(g,mk(cyl(.4,5,8),0x888888,null),0,9.5,0,.3);place(g,mk(cyl(.5,.6,8),0x666666,null),0,12,0);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const s=mk(new THREE.SphereGeometry(.18,6,6),0xffee44,null,.8);s.position.set(Math.cos(a)*3,5.5,Math.sin(a)*3);s.userData.isGoldCrystal=true;g.add(s);}const pl=new THREE.PointLight(0x4466ff,1.5,10);pl.position.y=9;g.add(pl);const fl=place(g,mk(bx(1.2,.6,.07),0x4488ff,null),.65,13,0);fl.userData.isFlag=true;return g;}
+function bld_alchemist(){const g=new THREE.Group();place(g,mk(bx(6,.4,5),0xc8b898,TX.stone),.5,.2,.5);place(g,mk(bx(6,3.5,5),0xd8c890,TX.white),.5,2,.5);place(g,mk(cone(3.5,2.5,6),0x664488,null),.5,4.25,.5);[[0,.5],[2.5,.5]].forEach(([cx,cz])=>{place(g,mk(new THREE.CylinderGeometry(.6,.8,1,10),0x333,null),cx,1,cz);const brew=mk(new THREE.SphereGeometry(.55,8,6,0,Math.PI*2,0,Math.PI/2),0x22cc44,null,.6);brew.position.set(cx,1.55,cz);brew.userData.isGoldCrystal=true;g.add(brew);const pl=new THREE.PointLight(0x22ff44,.8,3);pl.position.set(cx,2,cz);g.add(pl);});place(g,mk(bx(.8,.8,.35),0x224422,null),.5,2.2,.01);for(let i=0;i<5;i++){const v=mk(cyl(.1,.5,6),i%2===0?0xff4400:0x4400ff,null);v.position.set(-.8+i*.4,3.2,-.2);g.add(v);}const fl=place(g,mk(bx(.9,.5,.07),0x884488,null),1,5.8,.5);fl.userData.isFlag=true;return g;}
+function bld_citadel(){const g=new THREE.Group();place(g,mk(bx(14,.6,14),0xb8a888,TX.stone),5,.3,5);place(g,mk(bx(8,9,8),0xc8b898,TX.stone),5,5,5);[-0.5,.7,1.9,3.1,4.3,5.5,6.7].forEach(o=>{place(g,mk(bx(.75,1.2,.75),0xd8c8a8,null),2.3+o,9.8,.4);place(g,mk(bx(.75,1.2,.75),0xd8c8a8,null),2.3+o,9.8,9.6);});[[0,0],[9,0],[0,9],[9,9]].forEach(([tx,tz])=>{place(g,mk(cyl(1.8,12,10),0xd0c090,TX.stone),tx,6,tz);place(g,mk(cone(2.2,3.5,10),0xcc2200,TX.roof),tx,12.5,tz);});place(g,mk(bx(9,4,.8),0xc8b898,TX.stone),4.5,2.5,.35);place(g,mk(bx(9,4,.8),0xc8b898,TX.stone),4.5,2.5,8.65);place(g,mk(bx(.8,4,9),0xc8b898,TX.stone),.35,2.5,4.5);place(g,mk(bx(.8,4,9),0xc8b898,TX.stone),8.65,2.5,4.5);place(g,mk(bx(3,4.5,.85),0xc8b898,TX.stone),4.5,2.75,.3);place(g,mk(bx(1.8,3.5,.88),0x111,null),4.5,2.2,.25);for(let i=0;i<5;i++)place(g,mk(bx(.09,3.4,.09),0x555,null),3.8+i*.4,2.1,.24);const fl=place(g,mk(bx(2.5,1.2,.1),0xcc2200,null),5.3,14.1,5);fl.userData.isFlag=true;const pl=new THREE.PointLight(0x8800ff,1,12);pl.position.set(5,10,5);g.add(pl);return g;}
+function bld_dragonforge(){const g=new THREE.Group();place(g,mk(bx(7,.5,7),0x555040,TX.castle),0,.25,0);place(g,mk(bx(7,4,7),0x444030,TX.castle),0,2.5,0);place(g,mk(bx(2,1.5,1.5),0xc0a880,null),-1,5,0);place(g,mk(cone(1,1,4),0xc0a880,null),-1,6.2,0,Math.PI/4);[[.5,.5],[4.5,.5],[.5,4.5],[4.5,4.5]].forEach(([cx,cz])=>{place(g,mk(cyl(.7,5,8),0x333028,TX.castle),cx,5,cz);place(g,mk(cyl(.8,.4,8),0x222018,null),cx,7.55,cz);const e=mk(new THREE.SphereGeometry(.5,8,8),0xff2200,null,1);e.position.set(cx,7.7,cz);e.userData.isEmber=true;g.add(e);const pl=new THREE.PointLight(0xff3300,3,8);pl.position.set(cx,8,cz);pl.userData.isEmberLight=true;g.add(pl);});const fl=place(g,mk(bx(1.1,.6,.07),0xff4400,null),2.1,9,2.5);fl.userData.isFlag=true;return g;}
+function bld_vault(){const g=new THREE.Group();place(g,mk(bx(10,.6,10),0xd0c090,TX.stone),3,.3,3);place(g,mk(bx(8,6,8),0xc8b878,TX.stone),3,3.6,3);place(g,mk(new THREE.SphereGeometry(3.8,14,8,0,Math.PI*2,0,Math.PI/2),0xc9a84c,null),3,7.8,3);place(g,mk(cyl(.15,4,6),0xc9a84c,null),3,10,3);place(g,mk(new THREE.CylinderGeometry(1.6,1.6,.6,16),0x555548,TX.castle),3,3.2,-.35,Math.PI/2);place(g,mk(new THREE.CylinderGeometry(1.4,1.4,.65,16),0x333,null),3,3.2,-.3,Math.PI/2);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;place(g,mk(bx(.25,.25,.66),0x777770,null),3+Math.cos(a)*1.42,3.2+Math.sin(a)*1.42,-.29);}[-1.5,1.5].forEach(ox=>{place(g,mk(cyl(.35,6,8),0xe8dfc8,TX.stone),3+ox,3.6,-.3);place(g,mk(cyl(.35,6,8),0xe8dfc8,TX.stone),3+ox,3.6,6.3);});for(let i=0;i<5;i++){const coin=mk(new THREE.CylinderGeometry(.5,.5,.2,12),0xf5c842,null,.8);coin.position.set(3,1.5+i*.22,3);coin.userData.isGoldCrystal=true;g.add(coin);}const gl=new THREE.PointLight(0xffd060,2.5,12);gl.position.set(3,9,3);g.add(gl);const fl=place(g,mk(bx(2.2,1.1,.09),0xc9a84c,null),4.15,11.6,3);fl.material.emissive=new THREE.Color(0xc9a84c);fl.material.emissiveIntensity=.6;fl.userData.isFlag=true;return g;}
+function bld_starforge(){const g=new THREE.Group();place(g,mk(new THREE.CylinderGeometry(5,6,.6,12),0x4a4060,null),0,.3,0);place(g,mk(new THREE.CylinderGeometry(3.5,5,.4,12),0x332850,null),0,.75,0);place(g,mk(cyl(1.5,8,8),0x223366,TX.castle),0,4.6,0);place(g,mk(cone(2.5,3,8),0x4488ff,null),0,9.5,0);for(let i=0;i<4;i++){const a=i/4*Math.PI*2;const p=mk(cyl(.3,5,6),0x334488,null);p.position.set(Math.cos(a)*3.5,3,Math.sin(a)*3.5);p.rotation.z=.4;g.add(p);const s=mk(new THREE.SphereGeometry(.5,8,8),0xffee44,null,1);s.position.set(Math.cos(a)*3.8,5.5,Math.sin(a)*3.8);s.userData.isGoldCrystal=true;g.add(s);}const sc=mk(new THREE.OctahedronGeometry(1.2,0),0xffffaa,null,1);sc.position.set(0,9.5,0);sc.userData.isGoldCrystal=true;g.add(sc);const pl=new THREE.PointLight(0xffee44,3,15);pl.position.y=9.5;g.add(pl);const fl=place(g,mk(bx(1.6,.8,.09),0xffee44,null),.85,12,0);fl.userData.isFlag=true;return g;}
+function bld_portal(){const g=new THREE.Group();place(g,mk(bx(6,.5,3),0x333028,TX.castle),0,.25,0);place(g,mk(cyl(1,9,8),0x222018,TX.castle),-2.2,4,0);place(g,mk(cyl(1,9,8),0x222018,TX.castle),2.2,4,0);place(g,mk(bx(5,.8,.8),0x222018,TX.castle),0,8.4,0);const portal=new THREE.Mesh(new THREE.CircleGeometry(1.8,32),new THREE.MeshBasicMaterial({color:0x6622aa,transparent:true,opacity:0.7}));portal.position.set(0,4,.4);portal.userData.isGoldCrystal=true;g.add(portal);const pl=new THREE.PointLight(0x8844ff,4,12);pl.position.set(0,5,0);g.add(pl);for(let i=0;i<6;i++){const a=i/6*Math.PI*2;const r=mk(bx(.4,1.2,.4),0x554466,null);r.position.set(Math.cos(a)*4,1,Math.sin(a)*4);g.add(r);}const fl=place(g,mk(bx(1.4,.7,.08),0x8844ff,null),2.75,10.2,0);fl.material.emissive=new THREE.Color(0x8844ff);fl.material.emissiveIntensity=.7;fl.userData.isFlag=true;return g;}
+function bld_nexus(){const g=new THREE.Group();place(g,mk(new THREE.DodecahedronGeometry(3.5,0),0x224466,null),0,2,0);place(g,mk(new THREE.DodecahedronGeometry(2.8,0),0x336688,null),0,4,0);const sp=mk(new THREE.OctahedronGeometry(1.5,0),0x88aaff,null,.8);sp.position.set(0,6.5,0);sp.userData.isGoldCrystal=true;g.add(sp);for(let i=0;i<6;i++){const a=i/6*Math.PI*2;const orb=mk(new THREE.OctahedronGeometry(.6,0),0x4488cc,null,.7);orb.position.set(Math.cos(a)*3,4.5,Math.sin(a)*3);orb.userData.isGoldCrystal=true;g.add(orb);}for(let i=0;i<4;i++){const a=i/4*Math.PI*2;place(g,mk(cyl(.25,4,6),0x224466,null),Math.cos(a)*3,2,Math.sin(a)*3);}const pl=new THREE.PointLight(0x4488ff,3,14);pl.position.y=6;g.add(pl);const fl=place(g,mk(bx(1.4,.7,.08),0x4488ff,null),.75,8.5,0);fl.material.emissive=new THREE.Color(0x44aaff);fl.material.emissiveIntensity=.6;fl.userData.isFlag=true;return g;}
+function bld_shadowkeep(){const g=new THREE.Group();place(g,mk(bx(13,.6,13),0x1a1520,TX.castle),4,.3,4);place(g,mk(bx(7,10,7),0x1e1828,TX.castle),4,5.6,4);[[0,0],[9,0],[0,9],[9,9]].forEach(([tx,tz])=>{place(g,mk(cyl(1.4,12,8),0x1a1428,TX.castle),tx,6,tz);place(g,mk(cone(1.8,3,8),0x220033,null),tx,12.5,tz);const pl=new THREE.PointLight(0x8800ff,.8,5);pl.position.set(tx,13,tz);g.add(pl);});[[0,4.5],[9,4.5],[4.5,0],[4.5,9]].forEach(([bx2,bz])=>{const bowl=mk(new THREE.CylinderGeometry(.5,.7,.8,8),0x333,null);bowl.position.set(bx2,.8,bz);g.add(bowl);const fire=mk(new THREE.SphereGeometry(.4,8,8),0x8800ff,null,1);fire.position.set(bx2,1.4,bz);fire.userData.isEmber=true;g.add(fire);const pl=new THREE.PointLight(0x9900ff,1.5,5);pl.position.set(bx2,1.8,bz);pl.userData.isEmberLight=true;g.add(pl);});place(g,mk(bx(3,5,.9),0x1a1428,TX.castle),4,3,.3);place(g,mk(bx(2,4,.95),0x080810,null),4,2.5,.25);place(g,mk(cyl(.12,4.5,6),0x440066,null),4,13,4);const fl=place(g,mk(bx(2.4,1.1,.1),0xaa00ff,null),5.25,14.5,4);fl.material.emissive=new THREE.Color(0xaa00ff);fl.material.emissiveIntensity=.8;fl.userData.isFlag=true;const bigPl=new THREE.PointLight(0x8800ff,2,18);bigPl.position.set(4,8,4);g.add(bigPl);return g;}
+function bld_empirebank(){const g=new THREE.Group();place(g,mk(bx(16,.8,16),0xd0c090,TX.stone),6,.4,6);place(g,mk(bx(14,8,14),0xd8c878,TX.stone),6,4.8,6);[-2,-.8,.4,1.6,2.8,4,5.2,6.4].forEach(ox=>place(g,mk(cyl(.4,8,8),0xe8dfc8,TX.stone),3+ox,5,-.5));place(g,mk(bx(12,.7,1.6),0xd8c888,TX.stone),6,9.2,-.5);place(g,mk(new THREE.SphereGeometry(5,16,10,0,Math.PI*2,0,Math.PI/2),0xc9a84c,null),6,9.8,6);place(g,mk(cyl(.18,6,6),0xc9a84c,null),6,13,6);place(g,mk(cone(.8,2,6),0xc9a84c,null),6,16.5,6);const top=mk(new THREE.SphereGeometry(.7,12,12),0xf5c842,null,1);top.position.set(6,17.9,6);top.userData.isGoldCrystal=true;g.add(top);[[0,0],[12,0],[0,12],[12,12]].forEach(([tx,tz])=>{place(g,mk(cyl(1.4,11,10),0xd0c090,TX.stone),tx,5.5,tz);place(g,mk(cone(1.8,3.5,10),0xc9a84c,TX.roof),tx,11.75,tz);});const gl=new THREE.PointLight(0xffd060,4,20);gl.position.set(6,12,6);g.add(gl);const fl=place(g,mk(bx(3,1.4,.1),0xc9a84c,null),7.6,18,6);fl.material.emissive=new THREE.Color(0xc9a84c);fl.material.emissiveIntensity=.8;fl.userData.isFlag=true;return g;}
+
+const BLD_FN={mine:bld_mine,lumber:bld_lumber,forge:bld_forge,market:bld_market,hq:bld_hq,smelter:bld_smelter,workshop:bld_workshop,academy:bld_academy,temple:bld_temple,treasury:bld_treasury,observatory:bld_observatory,alchemist:bld_alchemist,citadel:bld_citadel,dragonforge:bld_dragonforge,vault:bld_vault,starforge:bld_starforge,portal:bld_portal,nexus:bld_nexus,shadowkeep:bld_shadowkeep,empirebank:bld_empirebank};
+
+// ══ PLACEMENT ══
+let ghostGroup=null, placingBld=null;
+function startPlacing(id){cancelPlacing();placingBld=id;const grp=BLD_FN[id]();grp.traverse(cv=>{if(cv.isMesh){cv.material=cv.material.clone();cv.material.transparent=true;cv.material.opacity=.55;cv.material.color.set(0x44ff88);}});ghostGroup=grp;scene.add(ghostGroup);const hint=document.getElementById('action-hint');if(hint){hint.textContent='🏗️ Tap to place · ESC cancels';hint.style.opacity='1';}toast('Tap anywhere to place '+id+'!',3000);}
+function cancelPlacing(){if(ghostGroup){scene.remove(ghostGroup);ghostGroup=null;}placingBld=null;const hint=document.getElementById('action-hint');if(hint)hint.style.opacity='0';}
+
+// ══ ERA REPLACEMENT MAP ══
+// When a new building is placed, these older buildings are superseded
+// Their 3D models are removed and replaced by the new building
+
+
+
+// ══ BUILDING MOVE SYSTEM ══
+let movingBld=null, moveGhost=null;
+
+function pickUpBuilding(id){
+  if(movingBld) return;
+  if(!G.bld[id]||G.bld[id]==='superseded') return;
+  if(!buildingMeshes[id]) return;
+  movingBld=id;
+  buildingMeshes[id].visible=false;
+  moveGhost=BLD_FN[id]();
+  moveGhost.traverse(cv=>{if(cv.isMesh){cv.material=cv.material.clone();cv.material.transparent=true;cv.material.opacity=.5;cv.material.color.set(0x88ccff);}});
+  scene.add(moveGhost);
+  const hint=document.getElementById('action-hint');
+  if(hint){hint.textContent='🏠 Tap to place · ESC cancels';hint.style.opacity='1';}
+  toast('📦 Moving '+id+' — tap to place!',2500);
+}
+function cancelMove(){
+  if(!movingBld) return;
+  if(buildingMeshes[movingBld]) buildingMeshes[movingBld].visible=true;
+  if(moveGhost){scene.remove(moveGhost);moveGhost=null;}
+  movingBld=null;
+  const hint=document.getElementById('action-hint');
+  if(hint) hint.style.opacity='0';
+}
+function confirmMove(wx,wz){
+  const id=movingBld; if(!id) return;
+  if(buildingMeshes[id]){scene.remove(buildingMeshes[id]);delete buildingMeshes[id];}
+  if(moveGhost){scene.remove(moveGhost);moveGhost=null;}
+  movingBld=null;
+  const gy=sampleH(wx,wz);
+  const grp=BLD_FN[id](); grp.position.set(wx,gy,wz);
+  scene.add(grp); buildingMeshes[id]=grp;
+  const hint=document.getElementById('action-hint');
+  if(hint) hint.style.opacity='0';
+  toast('✅ '+id+' moved!');
+}
+
+
+// ══ ERA REPLACEMENT ══
+const ERA_REPLACES={
+  academy:['lumber'],hq:['market'],treasury:['forge'],temple:['smelter'],
+  observatory:['academy'],citadel:['hq'],vault:['treasury'],dragonforge:['workshop'],alchemist:['market','smelter'],
+  starforge:['dragonforge','observatory'],portal:['citadel'],nexus:['vault','alchemist'],
+  shadowkeep:['portal','starforge'],empirebank:['nexus','temple'],
+};
+function removeSuperseded(id){
+  const rem=ERA_REPLACES[id]; if(!rem) return;
+  rem.forEach(old=>{
+    if(!G.bld[old]) return;
+    if(buildingMeshes[old]){scene.remove(buildingMeshes[old]);delete buildingMeshes[old];}
+    G.bld[old]='superseded';
+    toast('🔄 '+(BLD_DEF[old]?.name||old)+' superseded!',2000);
+  });
+}
+
+function confirmPlace(wx,wz){const id=placingBld;if(!id)return;cancelPlacing();G.bld[id]=true;removeSupersededBuildings(id);const gy=sampleH(wx,wz);const grp=BLD_FN[id]();grp.position.set(wx,gy,wz);scene.add(grp);buildingMeshes[id]=grp;startPassive();toast('✅ '+id+' built!');checkQuestProgress('build',1);updateHUD();renderBuildGrid();}
+function startBuild(id){closeCity();const def=BLD_DEF[id];if(G.bld[id]===true){toast('Already built!');return;}if(!def.req.every(r=>G.bld[r])){toast('Build first: '+def.req.filter(r=>!G.bld[r]).map(r=>BLD_DEF[r].name).join(', '));return;}for(const[res,amt] of Object.entries(def.cost)){if((G.res[res]||0)<amt){toast('Need '+amt+' '+res+' (have '+(G.res[res]||0)+')');return;}}for(const[res,amt] of Object.entries(def.cost))G.res[res]=(G.res[res]||0)-amt;updateHUD();startPlacing(id);}
+const RAY=new THREE.Raycaster();const GPLANE=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function screenToGround(ex,ey){const nx=(ex/window.innerWidth)*2-1,ny=-(ey/window.innerHeight)*2+1;RAY.setFromCamera({x:nx,y:ny},camera);const t=new THREE.Vector3();RAY.ray.intersectPlane(GPLANE,t);return t;}
+function onWorldTap(e){if(!e.target||typeof e.target.closest!=='function')return;if(e.target.closest('#world-hud')||e.target.closest('#mode-toggle')||e.target.closest('#dpad')||e.target.closest('#cam-ctrl')||e.target.closest('#action-bar'))return;if(!scene)return;e.preventDefault();if(movingBld){const wp=screenToGround(e.clientX,e.clientY);if(wp)confirmMove(wp.x,wp.z);return;}if(placingBld){const wp=screenToGround(e.clientX,e.clientY);if(wp)confirmPlace(wp.x,wp.z);return;}doMine();}
+window.addEventListener('pointermove',e=>{if(!ghostGroup)return;const wp=screenToGround(e.clientX,e.clientY);if(wp){const sx=Math.round(wp.x/2)*2,sz=Math.round(wp.z/2)*2;ghostGroup.position.set(sx,sampleH(sx,sz),sz);}});
+
+// ══ PLAYER ══
+let pPos={x:0,z:0};
+let playerGroup;
+function buildPlayer(){playerGroup=new THREE.Group();const body=mk(bx(.48,.68,.34),0x2255cc,null);body.position.y=.54;playerGroup.add(body);const ll=mk(bx(.18,.44,.18),0x2a1805,null);ll.position.set(-.13,.09,0);playerGroup.add(ll);const lr=mk(bx(.18,.44,.18),0x2a1805,null);lr.position.set(.13,.09,0);playerGroup.add(lr);const head=mk(bx(.4,.4,.36),0xf0b060,null);head.position.y=1.08;playerGroup.add(head);const helm=mk(bx(.46,.18,.42),0xc9a84c,null);helm.position.y=1.3;playerGroup.add(helm);const shld=mk(bx(.06,.42,.36),0x8B2000,null);shld.position.set(-.32,.58,0);playerGroup.add(shld);const swrd=mk(bx(.06,.58,.06),0xd8e8f8,null);swrd.position.set(.34,.6,0);playerGroup.add(swrd);const sh=new THREE.Mesh(new THREE.CircleGeometry(.4,12),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.22}));sh.rotation.x=-Math.PI/2;sh.position.y=.01;playerGroup.add(sh);playerGroup.position.set(0,sampleH(0,0),0);scene.add(playerGroup);}
+
+// ══ MINE ══
+resourceNodes=[];
+function nearestNode(){let best=null,bd=Infinity;resourceNodes.forEach(n=>{if(!n.parent)return;const dx=n.position.x-pPos.x,dz=n.position.z-pPos.z;const d=Math.sqrt(dx*dx+dz*dz);if(d<7&&d<bd){best=n;bd=d;}});return best;}
+function doMine(){const n=nearestNode();if(!n){toast('Walk closer to a resource!');return;}const type=n.userData.type;n.userData.hp--;const op=n.position.clone();let si=0;const sv=setInterval(()=>{si++;n.position.x=op.x+(Math.random()-.5)*.28;n.position.z=op.z+(Math.random()-.5)*.28;if(si>6){clearInterval(sv);n.position.copy(op);}},38);if(n.userData.hp<=0){let sc=1;const sv2=setInterval(()=>{sc-=.16;n.scale.setScalar(Math.max(0,sc));if(sc<=0){clearInterval(sv2);scene.remove(n);resourceNodes=resourceNodes.filter(x=>x!==n);}},55);}const bonus=G.bld.mine&&type==='stone'?.8:G.bld.lumber&&type==='wood'?.8:G.bld.smelter&&type==='iron'?1:G.bld.academy&&type==='crystal'?.8:G.bld.observatory&&type==='mana'?1.2:G.bld.starforge&&type==='starstone'?1.5:G.bld.shadowkeep&&type==='darkore'?2:0;const amt=Math.ceil(Math.random()*2+bonus);const earned=applyMult(amt,type);addRes(type,earned);addRes('emp',Math.floor(earned*.5));// Variable rewards — rare drop chance
+  const rare = rollRareDrop(type, earned);
+  if(rare) { addRes(rare.res, rare.amt); toast(rare.msg + ' +'+rare.amt+' '+rare.res, 3000); }
+  else toast('+'+earned+' '+type+'  🪙 +'+Math.floor(earned*.5)+' $EMP');
+  // Quest + mystery box tracking
+  checkQuestProgress('mine', earned, type);
+  checkMysteryBox();
+  updateHUD();}
+function doSell(){const sv={stone:1,wood:1,gold:2,iron:3,crystal:8,mana:15,starstone:40,darkore:80};let t=0;Object.entries(sv).forEach(([k,v])=>{if(G.res[k]){t+=G.res[k]*v;G.res[k]=0;}});if(!t){toast('No resources!');return;}const e=Math.floor(t*1.2);addRes('emp',e);toast('💰 +'+e+' $EMP');checkQuestProgress('sell',1);updateHUD();}
+function setWorldMode(m){G.worldMode=m;if(placingBld)cancelPlacing();}
+
+// ══ MOVEMENT ══
+const moving={};
+const SPD=0.16;
+let walkT=0,animT=0;
+function mv(dir,on){moving[dir]=on;}
+function mvStart(e,dir){e.preventDefault();try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}moving[dir]=true;const el=document.getElementById('dp'+dir.toUpperCase());if(el)el.classList.add('pr');}
+function mvStop(e,dir){moving[dir]=false;try{e.currentTarget.releasePointerCapture(e.pointerId);}catch(_){}const el=document.getElementById('dp'+dir.toUpperCase());if(el)el.classList.remove('pr');}
+function mvStopAll(){['w','a','s','d'].forEach(k=>{moving[k]=false;const el=document.getElementById('dp'+k.toUpperCase());if(el)el.classList.remove('pr');});}
+window.addEventListener('pointerup',mvStopAll);window.addEventListener('pointercancel',mvStopAll);window.addEventListener('blur',mvStopAll);
+// Prevent text selection / copy popup on HUD elements only
+document.addEventListener('contextmenu',e=>{if(!e.target||!e.target.closest)return;if(!e.target||!e.target.closest)return;if(!e.target.closest('#city-panel')&&!e.target.closest('#gmod'))e.preventDefault();});
+document.addEventListener('selectstart',e=>{if(!e.target||!e.target.closest)return;if(e.target.closest('#dpad')||e.target.closest('#cam-ctrl')||e.target.closest('#action-bar')||e.target.closest('#mode-toggle'))e.preventDefault();});
+// Prevent text selection / copy menu on game controls
+
+document.addEventListener('contextmenu',e=>{
+  // Block context menu everywhere except city panel (where text might be useful)
+  if(!e.target||!e.target.closest)return;if(!e.target.closest('#city-panel')&&!e.target.closest('#gmod')) e.preventDefault();
+});
+window.addEventListener('keydown',e=>{const m={ArrowUp:'w',KeyW:'w',ArrowDown:'s',KeyS:'s',ArrowLeft:'a',KeyA:'a',ArrowRight:'d',KeyD:'d'};const d=m[e.code];if(d)mv(d,1);if(e.code==='Space')doMine();if(e.code==='KeyE')openCity();if(e.code==='Escape'){cancelPlacing();cancelMove();}});
+window.addEventListener('keyup',e=>{const m={ArrowUp:'w',KeyW:'w',ArrowDown:'s',KeyS:'s',ArrowLeft:'a',KeyA:'a',ArrowRight:'d',KeyD:'d'};const d=m[e.code];if(d)mv(d,0);});
+function processMove(){if(!playerGroup)return;const fwdX=-Math.sin(camAngle),fwdZ=-Math.cos(camAngle);const rgtX=Math.cos(camAngle),rgtZ=-Math.sin(camAngle);let dx=0,dz=0;if(moving['w']){dx+=fwdX*SPD;dz+=fwdZ*SPD;}if(moving['s']){dx-=fwdX*SPD;dz-=fwdZ*SPD;}if(moving['a']){dx-=rgtX*SPD;dz-=rgtZ*SPD;}if(moving['d']){dx+=rgtX*SPD;dz+=rgtZ*SPD;}if(dx||dz){pPos.x=Math.max(-35,Math.min(35,pPos.x+dx));pPos.z=Math.max(-35,Math.min(35,pPos.z+dz));const gy=sampleH(pPos.x,pPos.z);playerGroup.position.set(pPos.x,gy,pPos.z);playerGroup.rotation.y=Math.atan2(-dx,-dz);walkT+=.28;playerGroup.children[1].rotation.x=Math.sin(walkT)*.6;playerGroup.children[2].rotation.x=-Math.sin(walkT)*.6;camTarget.x+=(pPos.x-camTarget.x)*.08;camTarget.z+=(pPos.z-camTarget.z)*.08;if(ghostGroup)ghostGroup.position.set(pPos.x+4,sampleH(pPos.x+4,pPos.z+4),pPos.z+4);}}
+
+// ══ HINTS ══
+function updateHints(){const n=nearestNode();const hint=document.getElementById('action-hint');if(!hint)return;if(placingBld){hint.textContent='🏗️ Tap to place · ESC cancels';hint.style.opacity='1';return;}if(n){hint.textContent='⛏️ Mine '+n.userData.type+' · tap or SPACE';hint.style.opacity='1';}else hint.style.opacity='0';}
+
+// ══ INIT ══
+let scene,camera,renderer;
+function initThree(){buildTextures();const canvas=document.getElementById('three-canvas');renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setSize(window.innerWidth,window.innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.setClearColor(0x78c8e8);scene=new THREE.Scene();scene.fog=new THREE.Fog(0x88cce8,40,90);initCamera();scene.add(new THREE.AmbientLight(0xfff4d8,.82));const sun=new THREE.DirectionalLight(0xffe090,1.6);sun.position.set(30,50,20);sun.castShadow=true;sun.shadow.mapSize.width=sun.shadow.mapSize.height=2048;sun.shadow.camera.left=sun.shadow.camera.bottom=-60;sun.shadow.camera.right=sun.shadow.camera.top=60;sun.shadow.camera.far=180;sun.shadow.bias=-.0004;scene.add(sun);scene.add(new THREE.HemisphereLight(0xaad8ff,0x44aa22,.45));buildTerrain();buildDecorations();buildResourceNodes();buildPlayer();document.getElementById('three-canvas').addEventListener('pointerdown',onWorldTap,{passive:false});animate();}
+
+// ══ ANIMATE ══
+function animate(){requestAnimationFrame(animate);animT+=.016;processMove();updateCam();updateHints();for(const grp of Object.values(buildingMeshes)){grp.traverse(cv=>{if(cv.userData.isSaw)cv.rotation.z+=.06;if(cv.userData.isEmber){cv.scale.setScalar(.65+Math.sin(animT*10)*.38);}if(cv.userData.isEmberLight)cv.intensity=1+Math.sin(animT*8)*1.0;if(cv.userData.isFlag)cv.rotation.y=Math.sin(animT*2.2)*.42;if(cv.userData.isGoldCrystal)cv.rotation.y+=.022;});}resourceNodes.forEach(n=>{n.traverse(cv=>{if(cv.userData&&cv.userData.isGoldCrystal)cv.rotation.y+=.025;});});renderer.render(scene,camera);}
+
+
+
+// ══════════════════════════════════════════════
+//  CITY PANEL
+// ══════════════════════════════════════════════
+const BLD_DEF={
+  mine:    {ico:'⛏️', name:'Mine Shaft',    cost:{stone:100},              req:[],
+            mult:'+25% Stone',  passive:'+5🪨/uur',  unlock:'—',           cd:'Tap -15%'},
+  lumber:  {ico:'🪵', name:'Lumber Mill',   cost:{wood:80},                req:['mine'],
+            mult:'+25% Wood',   passive:'+4🪵/uur',  unlock:'Block Builder',cd:'Memory -20%'},
+  forge:   {ico:'🔥', name:'Forge',         cost:{stone:60,wood:40},       req:['mine','lumber'],
+            mult:'+15% ALLES',  passive:'+3🥇/uur',  unlock:'Reaction',    cd:'Aim-15% React-20%'},
+  market:  {ico:'🏪', name:'Market Post',   cost:{wood:50,gold:30},        req:['forge'],
+            mult:'+50% Gold',   passive:'+10🥇/uur', unlock:'Lucky Spin',  cd:'Block -20%'},
+  smelter: {ico:'⚙️', name:'Smelter',       cost:{stone:80,gold:20},       req:['mine'],
+            mult:'+40% Iron',   passive:'+6⚙️/uur',  unlock:'—',           cd:'—'},
+  workshop:{ico:'🔨', name:'Workshop',      cost:{wood:120,iron:30},       req:['lumber','smelter'],
+            mult:'+20% ALLES',  passive:'+3🪨+3🪵/uur',unlock:'—',         cd:'Tap -10%'},
+  academy: {ico:'🎓', name:'Academy',       cost:{stone:150,gold:60},      req:['forge','market'],
+            mult:'+50% Crystal',passive:'+2💎/uur',  unlock:'—',           cd:'Memory -30%'},
+  temple:  {ico:'⛩️', name:'Temple',        cost:{gold:80,crystal:20},     req:['academy'],
+            mult:'+10% $EMP',   passive:'+20🪙/uur', unlock:'—',           cd:'React -15%'},
+  treasury:{ico:'🏦', name:'Treasury',      cost:{gold:200,iron:100,crystal:50},req:['hq','temple'],
+            mult:'+75% $EMP',   passive:'+80🪙/uur', unlock:'Vault',       cd:'Alle -15%'},
+  hq:      {ico:'🏛️', name:'Headquarters', cost:{stone:200,wood:200,gold:100},req:['mine','lumber','forge','market'],
+            mult:'+100% $EMP',  passive:'+50🪙/uur', unlock:'Auto-Mine',   cd:'Alle -10%'},
+  // ── ERA III: ARCANE AGE ──
+  observatory:{ico:'🔭',name:'Observatory',   cost:{stone:300,crystal:80},       req:['academy','hq'],
+               mult:'+60% Mana',  passive:'+5🔮/uur',  unlock:'Era III',   cd:'—'},
+  alchemist:  {ico:'⚗️', name:'Alchemist Lab', cost:{iron:150,crystal:100},       req:['smelter','observatory'],
+               mult:'+80% Gold',  passive:'+15🥇+2🔮/uur',unlock:'—',        cd:'Aim -25%'},
+  citadel:    {ico:'🏯', name:'Citadel',        cost:{stone:500,iron:200,mana:50}, req:['hq','observatory'],
+               mult:'+150% $EMP', passive:'+120🪙/uur',unlock:'Era III Boss',cd:'Alle -20%'},
+  dragonforge:{ico:'🐉', name:'Dragon Forge',   cost:{iron:300,mana:100},          req:['citadel','smelter'],
+               mult:'+100% Iron', passive:'+12⚙️+3🔮/uur',unlock:'—',       cd:'—'},
+  vault:      {ico:'🗄️', name:'EMP Vault',      cost:{gold:400,crystal:150,mana:80},req:['treasury','citadel'],
+               mult:'+100% $EMP', passive:'+200🪙/uur',unlock:'Vault Game', cd:'Alle -25%'},
+  // ── ERA IV: STELLAR AGE ──
+  starforge:  {ico:'🌟', name:'Star Forge',     cost:{crystal:300,mana:200,iron:400},req:['vault','citadel'],
+               mult:'+80% Starstone',passive:'+8⭐/uur',unlock:'Era IV',    cd:'—'},
+  portal:     {ico:'🌀', name:'Void Portal',    cost:{mana:400,starstone:100},      req:['starforge'],
+               mult:'+200% $EMP',passive:'+300🪙+1⭐/uur',unlock:'Portal Games',cd:'Alle -30%'},
+  nexus:      {ico:'💠', name:'Crystal Nexus',  cost:{crystal:500,starstone:200},    req:['portal','academy'],
+               mult:'+100% Crystal',passive:'+5💎+8🔮/uur',unlock:'—',      cd:'React -30%'},
+  // ── ERA V: SHADOW EMPIRE ──
+  shadowkeep: {ico:'🏰', name:'Shadow Keep',    cost:{darkore:200,starstone:300,mana:500},req:['nexus'],
+               mult:'+90% Darkore',passive:'+4🌑+150🪙/uur',unlock:'Era V', cd:'—'},
+  empirebank: {ico:'🏦🌑',name:'Empire Bank',    cost:{darkore:500,starstone:500,emp:10000},req:['shadowkeep','vault'],
+               mult:'+300% $EMP',passive:'+1000🪙/uur',unlock:'∞ Play',    cd:'Alle -40%'},
+};
+
+
+
+// ══ VARIABLE REWARDS SYSTEM ══
+const RARE_DROPS = {
+  stone:   [{res:'crystal',amt:1,chance:.04,msg:'💎 RARE DROP! Crystal uit de steen!'},{res:'iron',amt:3,chance:.12,msg:'⚙️ Iron vein gevonden!'}],
+  wood:    [{res:'crystal',amt:1,chance:.03,msg:'💎 Crystal in het hout!'},{res:'gold',amt:2,chance:.10,msg:'🥇 Goud in de boomstam!'}],
+  gold:    [{res:'emp',amt:5,chance:.15,msg:'🪙 $EMP glinstering!'},{res:'crystal',amt:2,chance:.06,msg:'💎 Crystal cluster!'}],
+  iron:    [{res:'emp',amt:3,chance:.12,msg:'🪙 Iron levert $EMP!'},{res:'crystal',amt:1,chance:.05,msg:'💎 Kristal in het ijzer!'}],
+  crystal: [{res:'emp',amt:8,chance:.20,msg:'🪙 Kristal omgezet in $EMP!'},{res:'mana',amt:2,chance:.10,msg:'🔮 Mana resonantie!'}],
+  mana:    [{res:'emp',amt:12,chance:.18,msg:'🪙 Mana condensed to $EMP!'},{res:'starstone',amt:1,chance:.05,msg:'⭐ Starstone gevormd!'}],
+  starstone:[{res:'emp',amt:25,chance:.22,msg:'🪙 Stellar energy!'},{res:'darkore',amt:1,chance:.04,msg:'🌑 Darkore kristallisatie!'}],
+  darkore: [{res:'emp',amt:50,chance:.25,msg:'🪙 Dark energy!'},{res:'starstone',amt:2,chance:.08,msg:'⭐ Reversed darkore!'}],
+};
+
+function rollRareDrop(type, baseAmt) {
+  const drops = RARE_DROPS[type];
+  if(!drops) return null;
+  for(const d of drops) {
+    if(Math.random() < d.chance) {
+      // Prestige bonus increases rare drop chance
+      return d;
+    }
+  }
+  return null;
+}
+
+function checkMysteryBox() {
+  G.totalTaps++;
+  // Set next threshold if not set yet
+  if(G.nextBoxAt <= 0) {
+    G.nextBoxAt = G.totalTaps + 20 + Math.floor(Math.random() * 31);
+  }
+  if(G.totalTaps >= G.nextBoxAt) {
+    G.mysteryBoxes++;
+    // Next box is again 20-50 clicks away from now
+    G.nextBoxAt = G.totalTaps + 20 + Math.floor(Math.random() * 31);
+    showMysteryBox();
+  }
+}
+
+const MYSTERY_REWARDS = [
+  {label:'🪨 Stone Cache',    res:{stone:50},          weight:30},
+  {label:'🪵 Wood Bundle',    res:{wood:40},            weight:28},
+  {label:'🥇 Gold Nugget',    res:{gold:15},            weight:20},
+  {label:'⚙️ Iron Ingots',    res:{iron:10},            weight:15},
+  {label:'💎 Crystal Shard',  res:{crystal:3},          weight:8},
+  {label:'🪙 $EMP Reward',    res:{emp:20},             weight:12},
+  {label:'🔮 Mana Surge',     res:{mana:5},             weight:5},
+  {label:'⭐ Starstone Frag', res:{starstone:1},        weight:3},
+  {label:'👑 JACKPOT!',       res:{emp:100,crystal:5},  weight:1},
+];
+
+function pickMysteryReward() {
+  const total = MYSTERY_REWARDS.reduce((s,r)=>s+r.weight,0);
+  let roll = Math.random()*total;
+  for(const r of MYSTERY_REWARDS) { roll-=r.weight; if(roll<=0) return r; }
+  return MYSTERY_REWARDS[0];
+}
+
+function showMysteryBox() {
+  const r = pickMysteryReward();
+  const box = document.getElementById('mystery-box');
+  const lbl = document.getElementById('mystery-label');
+  const btn = document.getElementById('mystery-open');
+  if(!box) return;
+  box.style.display='flex';
+  lbl.textContent = '📦 Mystery Box!';
+  btn.onclick = () => {
+    box.style.display='none';
+    Object.entries(r.res).forEach(([k,v])=>addRes(k,v));
+    toast('📦 '+r.label+'  — ' + Object.entries(r.res).map(([k,v])=>'+'+v+' '+k).join(' '), 3500);
+    updateHUD();
+    checkQuestProgress('open_box', 1);
+  };
+}
+
+// ══ DAILY QUESTS + STREAK ══
+const QUEST_POOL = [
+  {id:'mine_stone',  label:'⛏️ Mine 50 stone',     type:'mine',   res:'stone', need:50,  reward:{emp:25}},
+  {id:'mine_wood',   label:'🪵 Chop 40 wood',       type:'mine',   res:'wood',  need:40,  reward:{emp:20}},
+  {id:'mine_gold',   label:'🥇 Mine 10 gold',        type:'mine',   res:'gold',  need:10,  reward:{emp:30,crystal:1}},
+  {id:'mine_iron',   label:'⚙️ Mine 15 iron',        type:'mine',   res:'iron',  need:15,  reward:{emp:35}},
+  {id:'play_games',  label:'🎮 Play 2 mini games',   type:'play',   need:2,      reward:{emp:15,stone:20}},
+  {id:'earn_emp',    label:'🪙 Earn 100 $EMP',       type:'earn',   need:100,   reward:{emp:20,crystal:2}},
+  {id:'sell_res',    label:'💰 Sell resources (×3)', type:'sell',   need:3,     reward:{emp:18,gold:5}},
+  {id:'open_box',    label:'📦 Open 1 Mystery Box',  type:'open_box',need:1,    reward:{emp:12,stone:30}},
+  {id:'build_any',   label:'🏗️ Build any building',  type:'build',  need:1,     reward:{emp:50,crystal:3}},
+  {id:'mine_crystal',label:'💎 Mine 5 crystal',       type:'mine',   res:'crystal',need:5, reward:{emp:40,mana:2}},
+];
+
+function getTodayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function initDailyQuests() {
+  const today = getTodayStr();
+  if(G.questsDate !== today) {
+    // New day — generate 3 random quests
+    G.questsDate = today;
+    const pool = [...QUEST_POOL].sort(()=>Math.random()-.5);
+    G.quests = pool.slice(0,3).map(q=>({...q, progress:0, done:false}));
+    // Check streak
+    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+    if(G.lastLogin === yesterday) {
+      G.streak = Math.min(G.streak+1, 30);
+    } else if(G.lastLogin !== today) {
+      G.streak = 1;
+    }
+    G.lastLogin = today;
+    G.streakClaimed = false;
+    saveGame();
+  }
+}
+
+function checkQuestProgress(type, amount, res) {
+  if(!G.quests) return;
+  let anyCompleted = false;
+  G.quests.forEach(q => {
+    if(q.done) return;
+    if(q.type === type) {
+      if(type === 'mine' && res && q.res && q.res !== res) return;
+      q.progress = Math.min(q.need, (q.progress||0) + amount);
+      if(q.progress >= q.need) {
+        q.done = true; anyCompleted = true;
+        // Give reward
+        Object.entries(q.reward).forEach(([k,v]) => addRes(k, v));
+        toast('✅ Quest klaar: '+q.label+'  +'+Object.entries(q.reward).map(([k,v])=>v+' '+k).join(' '), 4000);
+        updateHUD();
+      }
+    }
+  });
+  if(anyCompleted) renderQuestsTab();
+}
+
+function claimStreakBonus() {
+  if(G.streakClaimed) { toast('Streak al geclaimd vandaag!'); return; }
+  const bonus = Math.min(G.streak * 5, 150);
+  addRes('emp', bonus);
+  if(G.streak >= 7)  addRes('crystal', Math.floor(G.streak/7));
+  if(G.streak >= 14) addRes('starstone', 1);
+  G.streakClaimed = true;
+  toast('🔥 Streak ×'+G.streak+' — +'+bonus+' $EMP geclaimd!', 3500);
+  updateHUD(); renderQuestsTab();
+}
+
+function renderQuestsTab(){
+  const el=document.getElementById('cp-quests');
+  if(!el) return;
+  const sc=G.streak>=7?'#ffaa00':G.streak>=3?'#f0c96e':'#a09060';
+  const bonus=Math.min(G.streak*5,150);
+  const btnTxt=G.streakClaimed?'✓ Geclaimd':'🎁 Claim +'+bonus+' $EMP';
+  const btnSt=G.streakClaimed?'opacity:.5;pointer-events:none':'cursor:pointer;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000';
+  let fires='';for(let i=1;i<=7;i++) fires+=`<span style="font-size:14px;opacity:${G.streak>=i?1:0.25}">🔥</span>`;
+  let qhtml='';
+  (G.quests||[]).forEach(q=>{
+    const pct=Math.min(100,Math.round((q.progress||0)/q.need*100));
+    const rwTxt=Object.entries(q.reward).map(([k,v])=>'+'+v+' '+(RES_ICO[k]||k)).join(' ');
+    qhtml+=`<div style="background:var(--bg3);border:1px solid ${q.done?'rgba(76,175,122,.5)':'var(--bdr)'};border-radius:9px;padding:9px;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:12px;font-weight:700;color:${q.done?'var(--grn)':'var(--txt)'}">${q.label}</div>
+        <div style="font-size:10px;color:var(--txt-d)">${q.progress||0}/${q.need}</div>
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-bottom:4px">
+        <div style="height:100%;width:${pct}%;background:${q.done?'var(--grn)':'linear-gradient(90deg,var(--gold-d),var(--gold-b))'};border-radius:2px;transition:width .3s"></div>
+      </div>
+      <div style="font-size:9px;color:var(--txt-d)">Reward: ${rwTxt}${q.done?' ✓':''}</div>
+    </div>`;
+  });
+  el.innerHTML=`
+    <div style="background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-family:Cinzel,serif;font-size:11px;color:var(--gold-b)">🔥 Daily Streak</div>
+        <div style="font-size:18px;font-weight:900;color:${sc}">×${G.streak}</div>
+      </div>
+      <div style="display:flex;gap:3px;margin-bottom:8px">${fires}${G.streak>7?`<span style="font-size:11px;color:var(--gold-b);margin-left:4px">+${(G.streak-7)*5}</span>`:''}</div>
+      <button onclick="claimStreakBonus()" style="width:100%;padding:8px;border-radius:7px;border:none;font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;${btnSt}">${btnTxt}</button>
+    </div>
+    <div style="font-family:Cinzel,serif;font-size:10px;letter-spacing:2px;color:var(--txt-d);margin-bottom:6px">📋 DAGELIJKSE QUESTS</div>
+    ${qhtml}`;
+}
+
+
+
+// ══ PRESTIGE SYSTEM ══
+const PRESTIGE_TITLES = ['Settler','Pioneer','Builder','Merchant','Knight','Warlord','Archmage','Starborn','Shadow Lord','Empire God'];
+const PRESTIGE_BADGES = ['🏠','⛏️','🏗️','🏪','⚔️','🏯','🔮','⭐','🌑','👑'];
+
+function canPrestige() {
+  return G.bld.empirebank && Object.values(G.bld).filter(Boolean).length >= 20;
+}
+
+function doPrestige() {
+  if(!canPrestige()) { toast('Bouw eerst alle 20 gebouwen + Empire Bank!'); return; }
+  if(G.prestige >= 10) { toast('Max Prestige bereikt! 👑 Je bent een legende!'); return; }
+
+  G.prestige++;
+  G.prestigeBonus = G.prestige * 0.10; // +10% per prestige level
+
+  // Reset resources and buildings (except keep emp/10)
+  const keptEMP = Math.floor(G.res.emp / 10);
+  Object.keys(G.res).forEach(k => G.res[k]=0);
+  Object.keys(G.bld).forEach(k => G.bld[k]=false);
+  Object.keys(G.upgrades).forEach(k => G.upgrades[k]=0);
+  G.res.emp = keptEMP;
+  G.era = 1;
+
+  // Reset quests but keep streak
+  G.quests = []; G.questsDate = '';
+
+  const title = PRESTIGE_TITLES[G.prestige-1];
+  const badge = PRESTIGE_BADGES[G.prestige-1];
+  toast('🌟 PRESTIGE '+G.prestige+' — '+badge+' '+title+'!  +'+Math.round(G.prestigeBonus*100)+'% permanent bonus!', 5000);
+  saveGame(); updateHUD(); renderBuildGrid();
+}
+
+function getPrestigeMultiplier() {
+  return 1 + G.prestigeBonus;
+}
+
+function renderPrestigeTab(){
+  const el=document.getElementById('cp-prestige-inner')||document.getElementById('cp-prestige');
+  if(!el) return;
+  const TITLES=['Settler','Pioneer','Builder','Merchant','Knight','Warlord','Archmage','Starborn','Shadow Lord','Empire God'];
+  const BADGES=['🏠','⛏️','🏗️','🏪','⚔️','🏯','🔮','⭐','🌑','👑'];
+  const title=G.prestige>0?TITLES[G.prestige-1]:'Beginner';
+  const badge=G.prestige>0?BADGES[G.prestige-1]:'🌱';
+  const can=canPrestige();
+  let pips='';
+  for(let i=0;i<10;i++) pips+=`<div style="width:20px;height:20px;border-radius:4px;background:${i<G.prestige?'var(--gold)':'rgba(255,255,255,.06)'};border:1px solid ${i<G.prestige?'var(--gold-b)':'rgba(255,255,255,.1)'};font-size:10px;display:flex;align-items:center;justify-content:center">${i<G.prestige?BADGES[i]:''}</div>`;
+  let histHtml='';
+  for(let i=0;i<G.prestige;i++) histHtml+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04)"><span>${BADGES[i]}</span><span style="color:var(--txt)">${TITLES[i]}</span><span style="margin-left:auto;color:var(--gold-b);font-size:9px">+${(i+1)*10}%</span></div>`;
+  const nextBlock=G.prestige<10?`
+    <div style="background:var(--bg3);border:1px solid ${can?'rgba(201,168,76,.5)':'var(--bdr)'};border-radius:9px;padding:12px;margin-bottom:8px">
+      <div style="font-family:Cinzel,serif;font-size:11px;color:var(--gold-b);margin-bottom:6px">Next: ${BADGES[G.prestige]} ${TITLES[G.prestige]}</div>
+      <div style="font-size:10px;color:var(--txt-d);margin-bottom:8px">Vereist: alle 20 gebouwen + Empire Bank<br>Behoudt: 10% van je $EMP · +10% permanent bonus</div>
+      <button onclick="doPrestige()" style="width:100%;padding:10px;border-radius:8px;border:none;font-family:Cinzel,serif;font-size:12px;font-weight:700;${can?'background:linear-gradient(135deg,#6a00aa,#aa00ff);color:#fff;cursor:pointer':'opacity:.4;cursor:default;background:rgba(255,255,255,.05);color:var(--txt-d)'}">
+        ${can?'🌟 PRESTIGE NOW':'🔒 Build all 20 buildings first'}
+      </button>
+    </div>`:'';
+  el.innerHTML=`
+    <div style="background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:12px;margin-bottom:8px;text-align:center">
+      <div style="font-size:36px;margin-bottom:4px">${badge}</div>
+      <div style="font-family:Cinzel,serif;font-size:14px;color:var(--gold-b)">${title}</div>
+      <div style="font-size:10px;color:var(--txt-d);margin:2px 0">Prestige Level ${G.prestige}/10</div>
+      ${G.prestigeBonus>0?`<div style="font-size:12px;font-weight:700;color:#44ff88;margin-top:4px">+${Math.round(G.prestigeBonus*100)}% permanent bonus actief</div>`:''}
+      <div style="display:flex;gap:4px;margin:10px 0;justify-content:center">${pips}</div>
+    </div>
+    ${nextBlock}
+    ${G.prestige>0?`<div style="font-size:9px;letter-spacing:2px;color:var(--txt-d);margin-bottom:6px">BEHAALDE TITELS</div>${histHtml}`:''}`;
+}
+
+
+
+// ══ BUILDING UPGRADES (resource sinks) ══
+const UPG_DEF = {
+  mine:     [{cost:{stone:200,emp:30},  bonus:'Stone ×1.5 + Tap CD -5%'},  {cost:{stone:500,iron:50,emp:100}, bonus:'Stone ×2.0 + Tap CD -10%'}],
+  lumber:   [{cost:{wood:200,emp:30},   bonus:'Wood ×1.5 + mem CD -5%'},   {cost:{wood:500,iron:50,emp:100},  bonus:'Wood ×2.0 + mem CD -10%'}],
+  forge:    [{cost:{stone:200,iron:30,emp:50},  bonus:'ALL ×1.25'},         {cost:{iron:200,crystal:20,emp:150},bonus:'ALL ×1.50'}],
+  market:   [{cost:{gold:100,emp:50},   bonus:'Gold ×1.5 + 20🥇/hr'},      {cost:{gold:300,crystal:30,emp:200},bonus:'Gold ×2.0 + 50🥇/hr'}],
+  hq:       [{cost:{stone:400,gold:200,emp:100},bonus:'$EMP ×1.5'},         {cost:{gold:500,crystal:100,emp:300},bonus:'$EMP ×2.0'}],
+  smelter:  [{cost:{iron:100,emp:40},   bonus:'Iron ×1.5'},                 {cost:{iron:300,crystal:30,emp:120},bonus:'Iron ×2.0'}],
+  workshop: [{cost:{wood:200,iron:50,emp:60}, bonus:'ALL ×1.3'},            {cost:{iron:200,mana:20,emp:200},  bonus:'ALL ×1.6'}],
+  academy:  [{cost:{crystal:50,emp:80}, bonus:'Crystal ×1.5'},              {cost:{crystal:150,mana:30,emp:250},bonus:'Crystal ×2.0'}],
+  temple:   [{cost:{gold:200,crystal:50,emp:100},bonus:'$EMP +30🪙/hr'},    {cost:{crystal:100,mana:50,emp:300},bonus:'$EMP +80🪙/hr'}],
+  treasury: [{cost:{gold:400,crystal:80,emp:150},bonus:'$EMP ×1.5'},        {cost:{crystal:200,mana:100,emp:500},bonus:'$EMP ×2.5'}],
+};
+
+function getUpgradeBonus(id) {
+  // Returns the total multiplier from upgrades for use in mult()
+  const lvl = G.upgrades[id] || 0;
+  if(lvl === 0) return 1;
+  // Lvl 1: +25%, Lvl 2: +60%
+  return lvl === 1 ? 1.25 : 1.6;
+}
+
+function buyUpgrade(id) {
+  if(!G.bld[id]) { toast('Bouw eerst '+id+'!'); return; }
+  const lvl = G.upgrades[id] || 0;
+  const defs = UPG_DEF[id];
+  if(!defs || lvl >= defs.length) { toast('Max level bereikt voor '+id+'!'); return; }
+  const cost = defs[lvl].cost;
+  for(const[res,amt] of Object.entries(cost)) {
+    if((G.res[res]||0) < amt) { toast('Niet genoeg '+res+' (need '+amt+', have '+(G.res[res]||0)+')'); return; }
+  }
+  for(const[res,amt] of Object.entries(cost)) G.res[res] -= amt;
+  G.upgrades[id] = lvl + 1;
+  toast('⬆️ '+id+' upgraded naar level '+(lvl+1)+'!  '+defs[lvl].bonus, 3500);
+  updateHUD(); renderUpgradesTab();
+  checkQuestProgress('upgrade', 1);
+}
+
+function renderUpgradesTab(){
+  const el=document.getElementById('cp-upgrades');
+  if(!el) return;
+  const builtAny=Object.values(G.bld).some(Boolean);
+  if(!builtAny){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--txt-d);font-size:11px">Bouw eerst gebouwen om ze te upgraden</div>';return;}
+  let html='<div style="font-size:9px;letter-spacing:2px;color:var(--txt-d);margin-bottom:8px">⬆️ GEBOUW UPGRADES — Permanente bonussen</div>';
+  Object.entries(UPG_DEF).forEach(([id,defs])=>{
+    if(!G.bld[id]) return;
+    const lvl=G.upgrades[id]||0;
+    const maxed=lvl>=defs.length;
+    const def=BLD_DEF[id];
+    let pips='';
+    for(let i=0;i<=defs.length;i++) pips+=`<div style="width:12px;height:12px;border-radius:3px;background:${i<=lvl?'var(--gold)':'rgba(255,255,255,.06)'};border:1px solid ${i<=lvl?'var(--gold-b)':'rgba(255,255,255,.1)'}"></div>`;
+    let nextHtml='';
+    if(!maxed){
+      const nd=defs[lvl];
+      let canAfford=true;
+      let costChips='';
+      Object.entries(nd.cost).forEach(([res,amt])=>{
+        const ok=(G.res[res]||0)>=amt;
+        if(!ok) canAfford=false;
+        costChips+=`<span style="font-size:9px;font-weight:700;padding:2px 5px;border-radius:5px;border:1px solid ${ok?'rgba(76,175,122,.4)':'rgba(224,85,85,.4)'};color:${ok?'var(--grn)':'var(--red)'}">${RES_ICO[res]||res}${amt}</span>`;
+      });
+      const bs=canAfford?'background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;cursor:pointer':'opacity:.4;cursor:default;background:rgba(255,255,255,.05);color:var(--txt-d)';
+      nextHtml=`<div style="font-size:9px;color:#44ff88;margin-bottom:5px">⬆️ Next: ${nd.bonus}</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px">${costChips}</div>
+        <button data-upg="${id}" style="width:100%;padding:7px;border-radius:7px;border:none;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;${bs}">⬆️ UPGRADE</button>`;
+    } else {
+      nextHtml=`<div style="font-size:10px;color:var(--grn);text-align:center">✓ Max Level — ${defs[defs.length-1].bonus}</div>`;
+    }
+    html+=`<div style="background:var(--bg3);border:1px solid ${maxed?'rgba(201,168,76,.4)':'var(--bdr)'};border-radius:9px;padding:10px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <span style="font-size:18px">${def.ico}</span>
+        <div>
+          <div style="font-family:Cinzel,serif;font-size:11px;color:var(--gold-b)">${def.name}</div>
+          <div style="font-size:9px;color:var(--txt-d)">Level ${lvl+1}/${defs.length+1}${maxed?' — MAX ✓':''}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:3px">${pips}</div>
+      </div>
+      ${nextHtml}
+    </div>`;
+  });
+  el.innerHTML=html;
+  // Attach onclick to upgrade buttons safely (avoids quote-in-string issues)
+  el.querySelectorAll('button[data-upg]').forEach(btn=>{
+    btn.onclick=()=>buyUpgrade(btn.dataset.upg);
+  });
+}
+
+
+
+// ══ ERA SYSTEM ══
+const ERA_DEFS=[
+  {n:1, label:'ERA I — Stone Age',    color:'#a09060', req:[]},
+  {n:2, label:'ERA II — Iron Age',    color:'#8899aa', req:['hq','treasury']},
+  {n:3, label:'ERA III — Arcane Age', color:'#8844cc', req:['vault','citadel']},
+  {n:4, label:'ERA IV — Stellar Age', color:'#4488ff', req:['portal','nexus']},
+  {n:5, label:'ERA V — Shadow Empire',color:'#cc44ff', req:['shadowkeep']},
+];
+function updateEra(){
+  let era=1;
+  for(const e of ERA_DEFS){
+    if(e.req.every(r=>G.bld[r])) era=e.n;
+  }
+  if(era!==G.era){
+    G.era=era;
+    const def=ERA_DEFS[era-1];
+    toast('🌟 '+def.label+' UNLOCKED!  Nieuwe gebouwen beschikbaar!',4000);
+  }
+  const def=ERA_DEFS[G.era-1];
+  const lbl=document.getElementById('era-label');
+  if(lbl){lbl.textContent=def.label;lbl.style.color=def.color;}
+  // Show/hide era sections in build grid
+  renderBuildGrid();
+}
+function renderBuildGrid(){
+  const el=document.getElementById('bld-grid');
+  if(!el) return;
+  el.innerHTML='';
+  const eraSections={
+    'ERA I'  :['mine','lumber','forge','market','smelter','workshop'],
+    'ERA II' :['academy','temple','hq','treasury'],
+    'ERA III':['observatory','alchemist','citadel','dragonforge','vault'],
+    'ERA IV' :['starforge','portal','nexus'],
+    'ERA V'  :['shadowkeep','empirebank'],
+  };
+  for(const[era,ids] of Object.entries(eraSections)){
+    const eraNum=parseInt(era.split(' ')[1]);
+    const unlocked=eraNum<=G.era+1; // show next era as preview
+    // Era header
+    const eraColors={'ERA I':'#a09060','ERA II':'#8899aa','ERA III':'#8844cc','ERA IV':'#4488ff','ERA V':'#cc44ff'};
+    const locked=eraNum>G.era+1;
+    el.innerHTML+=`<div style="grid-column:span 2;font-size:9px;font-weight:700;letter-spacing:2px;color:${eraColors[era]};padding:8px 2px 4px;border-top:1px solid rgba(255,255,255,0.07);margin-top:4px">${locked?'🔒 ':''} ${era}${locked?' — Unlock vorige era eerst':''}</div>`;
+    for(const id of ids){
+      const def=BLD_DEF[id];
+      if(!def) continue;
+      if(locked){
+        el.innerHTML+=`<div class="bc" style="opacity:0.35;cursor:default"><div class="bc-ico">${def.ico}</div><div class="bc-name">${def.name}</div><div class="bc-eff" style="font-size:8px">${def.mult}</div><div class="bc-costs" style="font-size:8px;color:var(--txt-d)">🔒 Era ${eraNum-1} vereist</div></div>`;
+        continue;
+      }
+      const built=G.bld[id]===true; const superseded=G.bld[id]==='superseded';
+      const prereq=def.req.every(r=>G.bld[r]);
+      let costsHtml='', canBuild=true;
+      for(const[res,amt] of Object.entries(def.cost)){
+        const ok=G.res[res]>=amt; if(!ok) canBuild=false;
+        costsHtml+=`<span class="bct ${ok?'ok':'no'}">${RES_ICO[res]||'?'}${amt}</span>`;
+      }
+      const lockHtml=!built&&!prereq?`<div class="bc-lock">🔒</div>`:'';
+      el.innerHTML+=`<div class="bc ${built?'built':superseded?'superseded':''}" onclick="cityBuild('${id}')"><div class="bc-ico">${def.ico}</div><div class="bc-name">${def.name}</div><div class="bc-eff">${def.mult} · ${def.passive}</div><div class="bc-costs">${built?'<span style="color:var(--grn);font-size:10px">✓ Gebouwd</span>':superseded?'<span style="color:var(--txt-d);font-size:10px">🔄 Vervangen</span>':costsHtml}</div>${lockHtml}</div>`;
+    }
+  }
+}
+
+function cityBuild(id){ startBuild(id); }
+
+function openCity(){
+  document.getElementById('city-panel').classList.add('open');
+  renderBuildGrid();
+  updateHUD();
+}
+function closeCity(){document.getElementById('city-panel').classList.remove('open');}
+function cityPanelBgClick(e){if(e.target===document.getElementById('city-panel')) closeCity();}
+
+function cpTab(name){
+  document.querySelectorAll('.cp-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.cp-page').forEach(p=>p.classList.remove('on'));
+  const page=document.getElementById('cp-'+name);
+  if(page) page.classList.add('on');
+  const tabs=['bld','games','quest','upg','prestige','shop','stats'];
+  const idx=tabs.indexOf(name);
+  if(idx>=0){ const t=document.querySelectorAll('.cp-tab')[idx]; if(t)t.classList.add('on'); }
+  if(name==='quest') renderQuestsTab();
+  if(name==='upg') renderUpgradesTab();
+  if(name==='prestige'){ const el=document.getElementById('cp-prestige-inner'); if(el){ const tmp=document.createElement('div'); tmp.id='cp-prestige-tmp'; document.getElementById('cp-prestige').appendChild(tmp); renderPrestigeTab(); } else renderPrestigeTab(); }
+}
+
+// ══════════════════════════════════════════════
+//  HUD UPDATE
+// ══════════════════════════════════════════════
+function updateHUD(){
+  // Render compact resource panel — all resources always visible
+  const showMana=G.bld.observatory||G.res.mana>0;
+  const showStar=G.bld.starforge||G.res.starstone>0;
+  const showDark=G.bld.shadowkeep||G.res.darkore>0;
+  const rp=document.getElementById('res-compact');
+  if(rp){
+    const RES_LIST=[
+      {k:'stone', ico:'🪨', v:G.res.stone,    show:true},
+      {k:'wood',  ico:'🪵', v:G.res.wood,     show:true},
+      {k:'gold',  ico:'🥇', v:G.res.gold,     show:true},
+      {k:'iron',  ico:'⚙️', v:G.res.iron||0,  show:true},
+      {k:'crystal',ico:'💎',v:G.res.crystal||0,show:true},
+      {k:'mana',  ico:'🔮', v:G.res.mana||0,  show:showMana},
+      {k:'starstone',ico:'⭐',v:G.res.starstone||0,show:showStar},
+      {k:'darkore',ico:'🌑',v:G.res.darkore||0,show:showDark},
+    ];
+    rp.innerHTML=RES_LIST.map(r=>r.show?
+      `<div class="rcp"><span>${r.ico}</span><span class="rv">${r.v}</span></div>`:''
+    ).join('')+
+    `<div class="rcp emp"><span>🪙</span><span class="rv">${G.res.emp}</span><span style="font-size:7px;opacity:.6">&nbsp;EMP</span></div>`;
+  }
+  // Era progression
+  updateEra();
+  const ph=passPerHour();
+  ['s','w','g','e'].forEach((ch,i)=>{
+    const el=document.getElementById('pb-'+ch);if(el) el.textContent=[ph.stone,ph.wood,ph.gold,ph.emp][i];
+  });
+  const pbi=document.getElementById('pb-iron');if(pbi)pbi.textContent=ph.iron;
+  const pbc=document.getElementById('pb-crystal');if(pbc)pbc.textContent=ph.crystal||0;
+  const pbm=document.getElementById('pb-mana');if(pbm)pbm.textContent=ph.mana;
+  const pbmw=document.getElementById('pb-mana-wrap');if(pbmw)pbmw.style.display=ph.mana>0?'flex':'none';
+  const pbs=document.getElementById('pb-star');if(pbs)pbs.textContent=ph.starstone;
+  const pbsw=document.getElementById('pb-star-wrap');if(pbsw)pbsw.style.display=ph.starstone>0?'flex':'none';
+  const pbd=document.getElementById('pb-dark');if(pbd)pbd.textContent=ph.darkore;
+  const pbdw=document.getElementById('pb-dark-wrap');if(pbdw)pbdw.style.display=ph.darkore>0?'flex':'none';
+  ['stone','wood','gold','emp'].forEach(k=>{
+    const el=document.getElementById('mm-'+k[0]);if(el) el.textContent=mult(k).toFixed(2);
+  });
+  // Stats
+  ['stone','wood','gold','emp'].forEach(k=>{const el=document.getElementById('st-'+k[0]);if(el) el.textContent=G.stats[k];});
+  const sti=document.getElementById('st-iron');if(sti)sti.textContent=G.stats.iron||0;
+  const stc=document.getElementById('st-crystal');if(stc)stc.textContent=G.stats.crystal||0;
+  const built=Object.values(G.bld).filter(Boolean).length;
+  const bel=document.getElementById('st-bld');if(bel) bel.textContent=built+'/5';
+  const amel=document.getElementById('st-am');if(amel) amel.textContent=G.bld.hq?'✅ Actief':'Locked';
+  updateGameCards();
+}
+
+function updateGameCards(){
+  const cds=['tap','aim','mem','block','react'];
+  const base={tap:'30 min',aim:'45 min',mem:'60 min',block:'90 min',react:'120 min'};
+  cds.forEach(g=>{
+    const l=cdLeft(g);
+    const el=document.getElementById('cd-'+g);if(el) el.innerHTML=`⏱ ${base[g]} · ${fmtCd(l)}`;
+    const btn=document.getElementById('btn-'+g);if(!btn) return;
+    const locked=(g==='block'&&!G.bld.lumber)||(g==='react'&&!G.bld.forge);
+    if(locked){btn.disabled=true;btn.textContent='🔒';return;}
+    btn.disabled=l>0;btn.textContent=l>0?'⏳':'PLAY';
+  });
+  const lb=document.getElementById('lk-block');if(lb) lb.style.display=G.bld.lumber?'none':'flex';
+  const lr=document.getElementById('lk-react');if(lr) lr.style.display=G.bld.forge?'none':'flex';
+}
+setInterval(updateGameCards,1000);
+
+// ══════════════════════════════════════════════
+//  GAME MODAL
+// ══════════════════════════════════════════════
+const GTITLES={tap:'⛏️ TAP TO MINE',aim:'🎯 AIM & SHOOT',mem:'🃏 MEMORY MATCH',block:'🧱 BLOCK BUILDER',react:'⚡ REACTION'};
+function playGame(id){
+  if(cdLeft(id)>0){toast('Cooldown actief!');return;}
+  const locked=(id==='block'&&!G.bld.lumber)||(id==='react'&&!G.bld.forge);
+  if(locked){toast('Bouw eerst het vereiste gebouw!');return;}
+  G.curGame=id;
+  closeCity();
+  document.getElementById('gmod').classList.add('on');
+  ['tap','aim','mem','block','react'].forEach(g=>document.getElementById('g-'+g).style.display='none');
+  document.getElementById('gmod-title').textContent=GTITLES[id];
+  ({tap:initTap,aim:initAim,mem:initMem,block:initBlock,react:initReact})[id]();
+}
+function closeGame(){
+  checkQuestProgress('play',1);
+  document.getElementById('gmod').classList.remove('on');
+  clearGameTimers();
+}
+function clearGameTimers(){
+  if(_aimT) clearInterval(_aimT);if(_aimST) clearInterval(_aimST);
+  if(_tapT) clearInterval(_tapT);if(_tapSpawnT) clearInterval(_tapSpawnT);
+  if(_mem&&_mem.timerT) clearInterval(_mem.timerT);
+  if(_blkT) clearInterval(_blkT);
+  if(_reactT) clearTimeout(_reactT);
+  if(_aimAF){cancelAnimationFrame(_aimAF);_aimAF=null;}
+  _aimOn=false; _tap.active=false;
+}
+
+// Result
+function showResult(title,sub,rws){
+  G.pending=rws;
+  document.getElementById('rp-t').textContent=title;
+  document.getElementById('rp-s').textContent=sub;
+  const w=document.getElementById('rp-rws');w.innerHTML='';
+  for(const[k,v] of Object.entries(rws)){if(v<=0) continue;w.innerHTML+=`<div class="rp-rw"><div class="rp-rw-v">+${v}</div><div class="rp-rw-l">${RES_ICO[k]||''} ${k.toUpperCase()}</div></div>`;}
+  document.getElementById('result').classList.add('on');
+}
+function collectResult(){
+  for(const[k,v] of Object.entries(G.pending)) addRes(k,v);
+  G.pending={};
+  document.getElementById('result').classList.remove('on');
+  closeGame();updateHUD();toast('✓ Resources verzameld!');
+}
+function playAgain(){
+  document.getElementById('result').classList.remove('on');
+  if(G.curGame&&cdLeft(G.curGame)<=0) playGame(G.curGame);
+  else{closeGame();toast('Cooldown actief!');}
+}
+
+// ── TAP ──
+// ══════════════════════════════════════════════════════
+// ⛏️ GAME 1: MINE DASH — tap falling ore chunks
+// ══════════════════════════════════════════════════════
+let _tap={};
+let _tapT=null, _tapSpawnT=null;
+
+function initTap(){
+  _tap={stone:0,wood:0,gold:0,emp:0,combo:0,comboT:null,taps:0,timeLeft:30,active:false};
+  document.getElementById('g-tap').style.display='flex';
+  document.getElementById('ts-combo').textContent='×1';
+  document.getElementById('ts-timer').textContent='30s';
+  ['ts-s','ts-w','ts-g','ts-e'].forEach(id=>document.getElementById(id).textContent='0');
+  const arena=document.getElementById('tap-arena');
+  arena.innerHTML='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px"><div style="font-family:Cinzel,serif;font-size:22px;color:var(--gold-b)">⛏️ MINE DASH</div><div style="font-size:12px;color:var(--txt-d);text-align:center">Tap the falling ore chunks!<br>Build combos for bigger rewards</div><button onclick="startMineDash()" style="padding:12px 28px;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;font-family:Cinzel,serif;font-size:13px;font-weight:700;border-radius:10px;border:none;cursor:pointer">▶ START</button></div>';
+}
+
+function startMineDash(){
+  const arena=document.getElementById('tap-arena');
+  arena.innerHTML='';
+  _tap.active=true;
+  _tap.timeLeft=30;
+  // Timer
+  _tapT=setInterval(()=>{
+    _tap.timeLeft--;
+    document.getElementById('ts-timer').textContent=_tap.timeLeft+'s';
+    document.getElementById('ts-timer').style.color=_tap.timeLeft<=5?'#ff2222':'var(--red)';
+    if(_tap.timeLeft<=0){clearInterval(_tapT);clearInterval(_tapSpawnT);endTap();}
+  },1000);
+  // Spawn ore chunks
+  _tapSpawnT=setInterval(()=>spawnOre(),600);
+  spawnOre(); spawnOre();
+}
+
+const ORE_TYPES=[
+  {emoji:'🪨',res:'stone',val:1,color:'#a09080',pts:1,size:52},
+  {emoji:'🪵',res:'wood', val:1,color:'#8B5E3C',pts:1,size:48},
+  {emoji:'🥇',res:'gold', val:1,color:'#f5c830',pts:2,size:44},
+  {emoji:'⚙️',res:'iron', val:1,color:'#8899aa',pts:2,size:44},
+  {emoji:'💎',res:'crystal',val:1,color:'#8855ff',pts:4,size:40},
+  {emoji:'🪙',res:'emp',  val:3,color:'#c9a84c',pts:3,size:44},
+  {emoji:'💣',res:null,   val:0,color:'#cc2200',pts:-2,size:46},
+];
+
+function spawnOre(){
+  if(!_tap.active) return;
+  const arena=document.getElementById('tap-arena');
+  const W=arena.offsetWidth||300, H=arena.offsetHeight||400;
+  // Weighted random - bombs get rarer with combo
+  const weights=[25,25,20,15,8,10, Math.max(2,15-_tap.combo*2)];
+  const total=weights.reduce((a,b)=>a+b,0);
+  let roll=Math.random()*total;
+  let type=ORE_TYPES[0];
+  for(let i=0;i<ORE_TYPES.length;i++){roll-=weights[i];if(roll<=0){type=ORE_TYPES[i];break;}}
+
+  const el=document.createElement('div');
+  const x=Math.random()*(W-type.size);
+  const duration=1.8+Math.random()*1.2;
+  el.style.cssText=`position:absolute;left:${x}px;top:-60px;width:${type.size}px;height:${type.size}px;font-size:${type.size-8}px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:transform .1s;filter:drop-shadow(0 2px 6px ${type.color});animation:fall ${duration}s linear forwards`;
+  el.textContent=type.emoji;
+  el.dataset.type=JSON.stringify(type);
+
+  el.addEventListener('pointerdown',e=>{
+    e.stopPropagation();
+    if(!_tap.active) return;
+    const t=JSON.parse(el.dataset.type);
+    el.style.transform='scale(1.4)';
+    el.style.opacity='0';
+    setTimeout(()=>el.remove(),150);
+    // Combo
+    clearTimeout(_tap.comboT);
+    _tap.combo=Math.min(_tap.combo+1,10);
+    _tap.comboT=setTimeout(()=>{_tap.combo=0;document.getElementById('ts-combo').textContent='×1';},1500);
+    const mult=1+(_tap.combo*0.15);
+    document.getElementById('ts-combo').textContent='×'+_tap.combo.toFixed(1);
+    if(t.pts<0){
+      _tap.combo=0;
+      document.getElementById('ts-combo').style.color='#ff4444';
+      setTimeout(()=>document.getElementById('ts-combo').style.color='var(--gold-b)',400);
+      floatText(el,'💥',x,0,'#ff4444');
+    } else if(t.res) {
+      const earned=Math.ceil(t.val*mult);
+      _tap[t.res]=((_tap[t.res]||0)+earned);
+      document.getElementById('ts-'+t.res[0]).textContent=_tap[t.res]||0;
+      if(t.res==='emp') document.getElementById('ts-e').textContent=_tap.emp||0;
+      floatText(el,'+'+earned+' '+t.emoji,x,0,t.color);
+    }
+    _tap.taps++;
+    checkMysteryBox();
+  });
+
+  arena.appendChild(el);
+  setTimeout(()=>{if(el.parentNode)el.remove();},duration*1000+200);
+}
+
+// Add fall animation to CSS
+if(!document.getElementById('game-css')){
+  const s=document.createElement('style');
+  s.id='game-css';
+  s.textContent=`@keyframes fall{0%{top:-60px;opacity:1}80%{opacity:1}100%{top:110%;opacity:0}}
+@keyframes floatUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-60px);opacity:0}}`;
+  document.head.appendChild(s);
+}
+
+function floatText(anchor, text, x, y, color){
+  const arena=document.getElementById('tap-arena');
+  const el=document.createElement('div');
+  const rect=anchor.getBoundingClientRect();
+  const arenaRect=arena.getBoundingClientRect();
+  el.style.cssText=`position:absolute;left:${rect.left-arenaRect.left}px;top:${rect.top-arenaRect.top}px;color:${color};font-weight:900;font-size:14px;pointer-events:none;animation:floatUp .8s ease-out forwards;z-index:10`;
+  el.textContent=text;
+  arena.appendChild(el);
+  setTimeout(()=>el.remove(),800);
+}
+
+function endTap(){
+  _tap.active=false;
+  clearInterval(_tapT); clearInterval(_tapSpawnT);
+  const rws={};
+  if(_tap.stone>0) rws.stone=_tap.stone;
+  if(_tap.wood>0)  rws.wood=_tap.wood;
+  if(_tap.gold>0)  rws.gold=_tap.gold;
+  if(_tap.iron>0)  rws.iron=_tap.iron;
+  if(_tap.crystal>0) rws.crystal=_tap.crystal;
+  rws.emp=Math.max(5, _tap.emp||0) + Math.floor(_tap.taps*0.5);
+  setCd('tap');
+  showResult('⛏️ Mine Dash Complete!',`${_tap.taps} ores tapped · max combo ×${_tap.combo.toFixed(1)}`,rws);
+}
+
+// ══════════════════════════════════════════════════════
+// 🎯 GAME 2: TOWER DEFENSE — shoot waves on canvas
+// ══════════════════════════════════════════════════════
+let _aim={},_aimT=null,_aimST=null,_aimOn=false,_aimAF=null;
+let _aimCtx=null;
+
+function initAim(){
+  _aim={sc:0,gold:0,wave:1,lives:3,enemies:[],bullets:[],tower:{x:0,y:0},shooting:false,lastShot:0,bossActive:false};
+  _aimOn=true;
+  document.getElementById('g-aim').style.display='flex';
+  document.getElementById('aim-sc').textContent='0';
+  document.getElementById('aim-wave').textContent='Wave 1';
+  document.getElementById('aim-lives').textContent='❤️❤️❤️';
+  document.getElementById('aim-gold').textContent='0🥇';
+  const cv=document.getElementById('aim-canvas');
+  cv.width=cv.offsetWidth||window.innerWidth;
+  cv.height=cv.offsetHeight||(window.innerHeight-120);
+  _aimCtx=cv.getContext('2d');
+  _aim.tower={x:cv.width/2, y:cv.height-40};
+  cv.addEventListener('pointerdown',aimShoot);
+  cv.addEventListener('pointermove',aimAim);
+  startAimWave();
+}
+
+function aimAim(e){
+  if(!_aimOn) return;
+  const cv=document.getElementById('aim-canvas');
+  const r=cv.getBoundingClientRect();
+  _aim.aimX=e.clientX-r.left;
+  _aim.aimY=e.clientY-r.top;
+}
+
+function aimShoot(e){
+  if(!_aimOn) return;
+  const cv=document.getElementById('aim-canvas');
+  const r=cv.getBoundingClientRect();
+  const tx=e.clientX-r.left, ty=e.clientY-r.top;
+  const now=Date.now();
+  if(now-_aim.lastShot<150) return;
+  _aim.lastShot=now;
+  const dx=tx-_aim.tower.x, dy=ty-_aim.tower.y;
+  const len=Math.sqrt(dx*dx+dy*dy);
+  _aim.bullets.push({x:_aim.tower.x,y:_aim.tower.y,vx:(dx/len)*14,vy:(dy/len)*14,r:5,life:60});
+  checkMysteryBox();
+}
+
+const ENEMY_TYPES=[
+  {emoji:'👹',hp:1,spd:1.2,r:18,val:1,color:'#cc2200'},
+  {emoji:'🧟',hp:2,spd:0.8,r:22,val:2,color:'#446622'},
+  {emoji:'🐉',hp:5,spd:0.6,r:30,val:5,color:'#8800cc'},
+  {emoji:'💀',hp:8,spd:1.5,r:20,val:3,color:'#888'},
+];
+
+function startAimWave(){
+  const count=3+_aim.wave*2;
+  const cv=document.getElementById('aim-canvas');
+  let spawned=0;
+  _aimST=setInterval(()=>{
+    if(!_aimOn||spawned>=count){clearInterval(_aimST);return;}
+    const type=ENEMY_TYPES[Math.min(Math.floor(Math.random()*(_aim.wave+1)),3)];
+    _aim.enemies.push({
+      x:Math.random()*cv.width, y:-30,
+      hp:type.hp+(_aim.wave-1), maxHp:type.hp+(_aim.wave-1),
+      spd:type.spd, r:type.r, val:type.val,
+      emoji:type.emoji, color:type.color, hit:0
+    });
+    spawned++;
+  },800);
+  if(!_aimAF) aimLoop();
+}
+
+function aimLoop(){
+  if(!_aimOn){_aimAF=null;return;}
+  _aimAF=requestAnimationFrame(aimLoop);
+  const cv=document.getElementById('aim-canvas');
+  const ctx=_aimCtx;
+  if(!ctx) return;
+  ctx.fillStyle='#05070e';
+  ctx.fillRect(0,0,cv.width,cv.height);
+
+  // Draw grid
+  ctx.strokeStyle='rgba(100,100,150,0.08)';ctx.lineWidth=1;
+  for(let x=0;x<cv.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke();}
+  for(let y=0;y<cv.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke();}
+
+  // Draw tower
+  ctx.font='32px serif'; ctx.textAlign='center';
+  ctx.fillText('🏰',_aim.tower.x,_aim.tower.y+10);
+
+  // Aim line
+  if(_aim.aimX){
+    ctx.strokeStyle='rgba(201,168,76,0.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(_aim.tower.x,_aim.tower.y-10);ctx.lineTo(_aim.aimX,_aim.aimY);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Move & draw enemies
+  _aim.enemies=_aim.enemies.filter(e=>{
+    e.y+=e.spd;
+    if(e.y>cv.height+30){
+      _aim.lives--;
+      const lv=['❤️❤️❤️','❤️❤️','❤️','💔'][Math.max(0,3-_aim.lives)];
+      document.getElementById('aim-lives').textContent=lv;
+      if(_aim.lives<=0){endAim();return false;}
+      return false;
+    }
+    if(e.hit>0) e.hit--;
+    ctx.globalAlpha=1;
+    ctx.font=(e.r*2)+'px serif';
+    ctx.textAlign='center';
+    ctx.fillText(e.emoji,e.x,e.y);
+    // HP bar
+    if(e.maxHp>1){
+      const bw=e.r*2; const bx=e.x-e.r;
+      ctx.fillStyle='#333';ctx.fillRect(bx,e.y-e.r-8,bw,5);
+      ctx.fillStyle=e.hit?'#ff4400':'#44ff88';
+      ctx.fillRect(bx,e.y-e.r-8,bw*(e.hp/e.maxHp),5);
+    }
+    return true;
+  });
+
+  // Move & draw bullets
+  _aim.bullets=_aim.bullets.filter(b=>{
+    b.x+=b.vx; b.y+=b.vy; b.life--;
+    if(b.life<=0||b.x<0||b.x>cv.width||b.y<0||b.y>cv.height) return false;
+    // Hit detection
+    let hit=false;
+    _aim.enemies.forEach(e=>{
+      const dx=b.x-e.x, dy=b.y-e.y;
+      if(Math.sqrt(dx*dx+dy*dy)<e.r+b.r){
+        e.hp--; e.hit=5;
+        if(e.hp<=0){
+          _aim.sc+=e.val; _aim.gold+=e.val;
+          document.getElementById('aim-sc').textContent=_aim.sc;
+          document.getElementById('aim-gold').textContent=_aim.gold+'🥇';
+          // Particles
+          for(let i=0;i<6;i++){
+            const a=Math.random()*Math.PI*2;
+            _aim.bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*4,vy:Math.sin(a)*4,r:2,life:15,particle:true,color:e.color});
+          }
+          _aim.enemies=_aim.enemies.filter(en=>en!==e);
+        }
+        hit=true;
+      }
+    });
+    if(b.particle){
+      ctx.fillStyle=b.color||'#f5c830';
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    } else {
+      ctx.fillStyle='#f5c830';
+      ctx.shadowBlur=8; ctx.shadowColor='#f5c830';
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+    return !hit||b.particle;
+  });
+
+  // Wave complete check
+  if(_aim.enemies.length===0&&!_aimST){
+    _aim.wave++;
+    document.getElementById('aim-wave').textContent='Wave '+_aim.wave;
+    if(_aim.wave>5){endAim();return;}
+    setTimeout(()=>{if(_aimOn)startAimWave();},1500);
+  }
+}
+
+function endAim(){
+  _aimOn=false;
+  if(_aimAF){cancelAnimationFrame(_aimAF);_aimAF=null;}
+  clearInterval(_aimST);
+  const wave=_aim.wave;
+  const bonus=wave>=5?20:wave>=3?10:0;
+  const rws={gold:_aim.gold+bonus, emp:_aim.sc*2};
+  if(wave>=5) rws.crystal=2;
+  setCd('aim');
+  showResult('🎯 Tower Defense!',`${_aim.sc} enemies defeated · wave ${wave}`,rws);
+}
+
+// ══════════════════════════════════════════════════════
+// 🃏 GAME 3: RUNE MATCH — memory with streak multiplier
+// ══════════════════════════════════════════════════════
+let _mem={};
+const RUNE_PAIRS=['🔥','💧','🌿','⚡','🌑','⭐','💎','🔮'];
+
+function initMem(){
+  _mem={fl:[],mt:0,mv:0,pairs:0,streak:0,startT:Date.now(),lk:false};
+  document.getElementById('g-mem').style.display='flex';
+  document.getElementById('mh-mv').textContent='0';
+  document.getElementById('mh-pr').textContent='0/8';
+  document.getElementById('mem-streak').textContent='×1';
+  document.getElementById('mem-msg').textContent='Match all 8 rune pairs!';
+  const deck=[...RUNE_PAIRS,...RUNE_PAIRS].sort(()=>Math.random()-.5);
+  const grid=document.getElementById('mem-grid');
+  grid.innerHTML='';
+  deck.forEach((rune,i)=>{
+    const card=document.createElement('div');
+    card.dataset.val=rune; card.dataset.idx=i;
+    card.style.cssText='aspect-ratio:1;background:linear-gradient(135deg,#0f1225,#1a1f35);border:1px solid rgba(201,168,76,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;transition:all .25s;transform:rotateY(180deg)';
+    card.textContent='?';
+    card.style.fontSize='18px';
+    card.style.color='rgba(201,168,76,.3)';
+    card.addEventListener('click',()=>flipCard(card));
+    grid.appendChild(card);
+  });
+  // Start timer
+  _mem.timerT=setInterval(()=>{
+    const elapsed=Math.floor((Date.now()-_mem.startT)/1000);
+    document.getElementById('mh-tm').textContent=elapsed+'s';
+  },1000);
+}
+
+function flipCard(card){
+  if(_mem.lk||card.dataset.flipped) return;
+  card.dataset.flipped='1';
+  card.style.transform='rotateY(0deg)';
+  card.style.background='linear-gradient(135deg,#1a1035,#2a1850)';
+  card.style.border='1px solid rgba(136,85,255,.5)';
+  card.style.fontSize='28px';
+  card.style.color='#fff';
+  card.textContent=card.dataset.val;
+  _mem.fl.push(card);
+  if(_mem.fl.length===2){
+    _mem.lk=true; _mem.mv++;
+    document.getElementById('mh-mv').textContent=_mem.mv;
+    const [a,b]=_mem.fl;
+    if(a.dataset.val===b.dataset.val){
+      _mem.streak++;
+      document.getElementById('mem-streak').textContent='×'+_mem.streak;
+      [a,b].forEach(c=>{
+        c.style.background='linear-gradient(135deg,#0a2818,#144028)';
+        c.style.border='1px solid rgba(76,175,122,.6)';
+        c.style.boxShadow='0 0 12px rgba(76,175,122,.3)';
+      });
+      _mem.pairs++;
+      document.getElementById('mh-pr').textContent=_mem.pairs+'/8';
+      document.getElementById('mem-msg').textContent=['🔥 Match!','⚡ Great!','💎 Perfect!','🌟 On fire!'][Math.floor(Math.random()*4)]+' ×'+_mem.streak+' streak!';
+      _mem.fl=[];
+      _mem.lk=false;
+      if(_mem.pairs===8) setTimeout(endMem,500);
+    } else {
+      _mem.streak=0;
+      document.getElementById('mem-streak').textContent='×1';
+      document.getElementById('mem-msg').textContent='Keep trying...';
+      [a,b].forEach(c=>{
+        c.style.background='linear-gradient(135deg,#1a0808,#280808)';
+        c.style.border='1px solid rgba(224,85,85,.4)';
+      });
+      setTimeout(()=>{
+        [a,b].forEach(c=>{
+          delete c.dataset.flipped;
+          c.style.transform='rotateY(180deg)';
+          c.style.background='linear-gradient(135deg,#0f1225,#1a1f35)';
+          c.style.border='1px solid rgba(201,168,76,.2)';
+          c.style.fontSize='18px';
+          c.style.color='rgba(201,168,76,.3)';
+          c.textContent='?';
+        });
+        _mem.fl=[]; _mem.lk=false;
+      },900);
+    }
+  }
+}
+
+function endMem(){
+  clearInterval(_mem.timerT);
+  const t=Math.floor((Date.now()-_mem.startT)/1000);
+  const mv=_mem.mv;
+  let rws={};
+  if(mv<=12)      rws={stone:8,wood:6,gold:4,emp:30};
+  else if(mv<=18) rws={stone:5,wood:4,gold:2,emp:20};
+  else            rws={stone:2,wood:2,emp:10};
+  if(t<30) rws.crystal=(rws.crystal||0)+2;
+  if(t<20) rws.mana=(rws.mana||0)+1;
+  setCd('mem');
+  showResult('🃏 Rune Match!',`${mv} moves · ${t}s · best streak ×${_mem.streak}`,rws);
+}
+
+// ══════════════════════════════════════════════════════
+// 🧱 GAME 4: EMPIRE BUILDER — Tetris (unchanged core, polished)
+// ══════════════════════════════════════════════════════
+const BC=10,BR=20,BS=18;
+let _blk={},_blkT=null;
+const SHAPES=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0],[1,0],[1,1]],[[0,1],[0,1],[1,1]],[[0,1,1],[1,1,0]],[[1,1,0],[0,1,1]]];
+const BCOLORS=['#c9a84c','#44aaff','#ff4488','#44ff88','#ff8800','#8844ff','#ff4444'];
+
+function initBlock(){
+  _blk={board:Array.from({length:BR},()=>Array(BC).fill(0)),cur:null,nxt:null,sc:0,ln:0,lv:1,dead:false,s:0,w:0,g:0};
+  document.getElementById('g-block').style.display='flex';
+  ['bh-sc','bh-ln','bh-lv'].forEach(id=>document.getElementById(id).textContent=id==='bh-lv'?'1':'0');
+  document.getElementById('bh-res').innerHTML='🪨0 🪵0 🥇0';
+  bNewPiece(); bNewPiece();
+  _blkT=setInterval(bTick,600);
+}
+
+function bNewPiece(){
+  if(_blk.nxt==null){const s=~~(Math.random()*SHAPES.length);_blk.nxt={shape:SHAPES[s],col:BCOLORS[s],x:3,y:0};}
+  _blk.cur=JSON.parse(JSON.stringify(_blk.nxt));
+  _blk.cur.x=3; _blk.cur.y=0;
+  const s=~~(Math.random()*SHAPES.length);
+  _blk.nxt={shape:SHAPES[s],col:BCOLORS[s],x:3,y:0};
+  if(!bCanPlace(_blk.cur,0,0)) _blk.dead=true;
+  bDraw();
+}
+
+function bCanPlace(p,dx,dy,shape){
+  const sh=shape||p.shape;
+  for(let r=0;r<sh.length;r++) for(let cc=0;cc<sh[r].length;cc++){
+    if(!sh[r][cc]) continue;
+    const nx=p.x+cc+dx, ny=p.y+r+dy;
+    if(nx<0||nx>=BC||ny>=BR) return false;
+    if(ny>=0&&_blk.board[ny][nx]) return false;
+  }
+  return true;
+}
+
+function bTick(){
+  if(_blk.dead){clearInterval(_blkT);endBlock();return;}
+  if(bCanPlace(_blk.cur,0,1)) _blk.cur.y++;
+  else bLock();
+  bDraw();
+}
+
+function bLock(){
+  _blk.cur.shape.forEach((row,r)=>row.forEach((v,cc)=>{
+    if(v&&_blk.cur.y+r>=0) _blk.board[_blk.cur.y+r][_blk.cur.x+cc]=_blk.cur.col;
+  }));
+  // Clear lines
+  let cleared=0;
+  for(let r=BR-1;r>=0;r--){
+    if(_blk.board[r].every(c=>c)){
+      _blk.board.splice(r,1);
+      _blk.board.unshift(Array(BC).fill(0));
+      cleared++; r++;
+    }
+  }
+  if(cleared){
+    const pts=[0,100,300,500,800][cleared]*_blk.lv;
+    _blk.sc+=pts; _blk.ln+=cleared;
+    _blk.lv=Math.floor(_blk.ln/10)+1;
+    clearInterval(_blkT); _blkT=setInterval(bTick,Math.max(150,600-(_blk.lv-1)*50));
+    // Resource rewards for clearing
+    _blk.s+=cleared; _blk.w+=cleared; if(cleared>=2)_blk.g+=cleared-1;
+    document.getElementById('bh-sc').textContent=_blk.sc;
+    document.getElementById('bh-ln').textContent=_blk.ln;
+    document.getElementById('bh-lv').textContent=_blk.lv;
+    document.getElementById('bh-res').innerHTML='🪨'+_blk.s+' 🪵'+_blk.w+' 🥇'+_blk.g;
+  }
+  bNewPiece();
+}
+
+function bMv(d){if(!_blk.dead&&bCanPlace(_blk.cur,d,0)){_blk.cur.x+=d;bDraw();}}
+function bRt(){
+  if(_blk.dead) return;
+  const rot=_blk.cur.shape[0].map((_,i)=>_blk.cur.shape.map(r=>r[i]).reverse());
+  if(bCanPlace(_blk.cur,0,0,rot)){_blk.cur.shape=rot;bDraw();}
+}
+function bDp(){if(!_blk.dead){while(bCanPlace(_blk.cur,0,1))_blk.cur.y++;bLock();bDraw();}}
+
+function dCell(ctx,x,y,col){
+  ctx.fillStyle=col;
+  ctx.fillRect(x*BS+1,y*BS+1,BS-2,BS-2);
+  ctx.fillStyle='rgba(255,255,255,.15)';
+  ctx.fillRect(x*BS+1,y*BS+1,BS-2,3);
+  ctx.fillStyle='rgba(0,0,0,.2)';
+  ctx.fillRect(x*BS+1,y*BS+BS-4,BS-2,3);
+}
+
+function bDraw(){
+  const cv=document.getElementById('bcanvas'),ctx=cv.getContext('2d');
+  ctx.fillStyle='#08090f'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='rgba(255,255,255,.04)'; ctx.lineWidth=0.5;
+  for(let r=0;r<=BR;r++){ctx.beginPath();ctx.moveTo(0,r*BS);ctx.lineTo(BC*BS,r*BS);ctx.stroke();}
+  for(let cc=0;cc<=BC;cc++){ctx.beginPath();ctx.moveTo(cc*BS,0);ctx.lineTo(cc*BS,BR*BS);ctx.stroke();}
+  for(let r=0;r<BR;r++) for(let cc=0;cc<BC;cc++) if(_blk.board[r][cc]) dCell(ctx,cc,r,_blk.board[r][cc]);
+  // Ghost piece
+  if(_blk.cur&&!_blk.dead){
+    let gy=_blk.cur.y;
+    while(bCanPlace(_blk.cur,0,gy-_blk.cur.y+1)) gy++;
+    _blk.cur.shape.forEach((row,r)=>row.forEach((v,cc)=>{
+      if(v&&gy+r>=0){ctx.fillStyle='rgba(255,255,255,.08)';ctx.fillRect((_blk.cur.x+cc)*BS+1,(gy+r)*BS+1,BS-2,BS-2);}
+    }));
+    _blk.cur.shape.forEach((row,r)=>row.forEach((v,cc)=>{if(v&&_blk.cur.y+r>=0) dCell(ctx,_blk.cur.x+cc,_blk.cur.y+r,_blk.cur.col);}));
+  }
+  // Next piece preview
+  const nc=document.getElementById('bnext'),nctx=nc.getContext('2d');
+  nctx.fillStyle='#08090f'; nctx.fillRect(0,0,70,70);
+  if(_blk.nxt){
+    const ox=Math.floor((3-_blk.nxt.shape[0].length)/2),oy=Math.floor((3-_blk.nxt.shape.length)/2);
+    _blk.nxt.shape.forEach((row,r)=>row.forEach((v,cc)=>{if(v){nctx.fillStyle=_blk.nxt.col;nctx.fillRect((ox+cc)*18+5,(oy+r)*18+5,16,16);}}));
+  }
+}
+
+function endBlock(){
+  clearInterval(_blkT);
+  const rws={stone:_blk.s||2,wood:_blk.w||2,gold:_blk.g||0};
+  if(_blk.sc>=500){rws.gold+=20;rws.iron=2;}
+  else if(_blk.sc>=200) rws.gold+=10;
+  rws.emp=Math.floor(_blk.sc/10)+5;
+  setCd('block');
+  showResult('🧱 Empire Builder!',`Score: ${_blk.sc} · ${_blk.ln} lines · Level ${_blk.lv}`,rws);
+}
+
+// ══════════════════════════════════════════════════════
+// ⚡ GAME 5: LIGHTNING FORGE — rhythm tap with visual beat
+// ══════════════════════════════════════════════════════
+let _react={},_reactT=null;
+
+function initReact(){
+  _react={rnd:0,max:6,on:false,wait:false,st:0,emp:0,score:0};
+  document.getElementById('g-react').style.display='flex';
+  document.getElementById('react-res').innerHTML='';
+  document.getElementById('react-fb').textContent='';
+  document.getElementById('react-rnd').textContent='ROUND 1 / 6';
+  const c=document.getElementById('react-c');
+  c.style.background='#1a1008';
+  c.style.borderColor='#333';
+  c.textContent='⚒️';
+  document.getElementById('react-ring').style.borderColor='transparent';
+  document.getElementById('react-title').textContent='⚡ LIGHTNING FORGE';
+  setTimeout(nextReact,800);
+}
+
+function nextReact(){
+  if(_react.rnd>=_react.max){endReact();return;}
+  _react.rnd++;
+  _react.on=false; _react.wait=true;
+  document.getElementById('react-rnd').textContent='ROUND '+_react.rnd+' / '+_react.max;
+  document.getElementById('react-fb').textContent='';
+  const c=document.getElementById('react-c');
+  const ring=document.getElementById('react-ring');
+  c.style.background='#1a1008'; c.style.borderColor='#333'; c.textContent='⚒️';
+  ring.style.borderColor='transparent';
+  // Shrinking ring builds anticipation
+  ring.style.transition='none';
+  ring.style.transform='scale(1.4)';
+  ring.style.borderColor='rgba(201,168,76,0.3)';
+  const delay=1000+Math.random()*2500;
+  setTimeout(()=>{
+    if(!_react.wait) return;
+    // Animate ring shrinking in
+    ring.style.transition='transform 0.3s ease-in, border-color 0.3s';
+    ring.style.transform='scale(1)';
+    ring.style.borderColor='#f5c830';
+    setTimeout(()=>{
+      if(!_react.wait) return;
+      _react.on=true; _react.st=Date.now();
+      c.style.background='radial-gradient(circle,#3a2000,#1a1008)';
+      c.style.borderColor='#f5c830';
+      c.style.boxShadow='0 0 30px #f5c830';
+      c.textContent='⚡';
+      ring.style.transition='all .05s';
+      ring.style.borderColor='#ff8800';
+      clearTimeout(_reactT);
+      _reactT=setTimeout(()=>{
+        if(_react.on){
+          _react.on=false; _react.wait=false;
+          document.getElementById('react-fb').textContent='❌ Too slow!';
+          document.getElementById('react-fb').style.color='#ff4444';
+          c.style.background='#1a0808'; c.style.borderColor='#cc2200';
+          c.style.boxShadow=''; c.textContent='⚒️';
+          ring.style.borderColor='transparent';
+          setTimeout(nextReact,1200);
+        }
+      },1200);
+    },300);
+  },delay);
+}
+
+function reactTap(){
+  if(_react.on){
+    const ms=Date.now()-_react.st;
+    _react.on=false; _react.wait=false;
+    clearTimeout(_reactT);
+    const ring=document.getElementById('react-ring');
+    ring.style.borderColor='transparent';
+    let earned=0, grade='';
+    if(ms<200)     {earned=8;grade='⚡ LIGHTNING! '+ms+'ms';}
+    else if(ms<350){earned=5;grade='🔥 Fast! '+ms+'ms';}
+    else if(ms<500){earned=3;grade='✅ Good! '+ms+'ms';}
+    else           {earned=1;grade='🐌 Slow '+ms+'ms';}
+    _react.emp+=earned;
+    _react.score+=earned;
+    const fb=document.getElementById('react-fb');
+    fb.textContent=grade;
+    fb.style.color=ms<200?'#f5c830':ms<350?'#ff8800':ms<500?'#44ff88':'#888';
+    const c=document.getElementById('react-c');
+    c.style.background=`radial-gradient(circle,${ms<200?'#4a3800':ms<350?'#2a2000':'#1a1808'},#05070e)`;
+    c.style.borderColor=ms<200?'#f5c830':ms<350?'#ff8800':'#44aa44';
+    c.style.boxShadow=ms<200?'0 0 40px #f5c830':'';
+    c.textContent=ms<200?'⚡':ms<350?'🔥':'✅';
+    // Show running total
+    const res=document.getElementById('react-res');
+    res.innerHTML+=`<div style="font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.06);color:${ms<200?'#f5c830':ms<350?'#ff8800':'#aaa'}">R${_react.rnd}: +${earned}🪙</div>`;
+    setTimeout(nextReact,1000);
+  } else if(_react.wait){
+    // Too early!
+    _react.wait=false;
+    const fb=document.getElementById('react-fb');
+    fb.textContent='⚠️ Too early!'; fb.style.color='#ff8800';
+    const c=document.getElementById('react-c');
+    c.style.background='#1a0808'; c.textContent='⚒️';
+    document.getElementById('react-ring').style.borderColor='transparent';
+    setTimeout(nextReact,1200);
+  }
+}
+
+function endReact(){
+  const rws={emp:_react.emp};
+  if(_react.emp>=40) rws.crystal=2;
+  else if(_react.emp>=24) rws.gold=3;
+  setCd('react');
+  showResult('⚡ Lightning Forge!',`${_react.emp}🪙 earned · ${_react.score} total score`,rws);
+}
+
+
+
+// ── SHOP ──
+function buyShop(id){const msgs={b1:'⚡ Boost I actief! -25% CD',vip:'👑 VIP Dagspass! -60% CD +2× output',b2:'⚡ Boost II actief!',rst:'🔄 Kies een game om te resetten','ul-block':'🧱 Block Builder unlocked!','ul-react':'⚡ Reaction unlocked!',bp:'🏗️ Builder Pass actief!',ep:'👑 Empire Pass actief!'};toast('📱 '+(msgs[id]||'TON wallet...'))}
+
+// ── TOAST ──
+let _tT;
+function toast(msg,dur=2200){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.style.opacity='1';clearTimeout(_tT);_tT=setTimeout(()=>t.style.opacity='0',dur);}
+
+// ══════════════════════════════════════════════
+//  LAUNCH
+// ══════════════════════════════════════════════
+
+// ══ SAVE / LOAD ══
+function saveGame(){
+  try{
+    const sv={
+      res:G.res, bld:G.bld, cd:G.cd, stats:G.stats,
+      era:G.era, streak:G.streak, lastLogin:G.lastLogin,
+      streakClaimed:G.streakClaimed, quests:G.quests,
+      questsDate:G.questsDate, prestige:G.prestige,
+      prestigeBonus:G.prestigeBonus, upgrades:G.upgrades,
+      mysteryBoxes:G.mysteryBoxes, totalTaps:G.totalTaps, nextBoxAt:G.nextBoxAt,
+    };
+    localStorage.setItem('empyria_save', JSON.stringify(sv));
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem('empyria_save');
+    if(!raw) return;
+    const sv=JSON.parse(raw);
+    Object.assign(G.res, sv.res||{});
+    Object.assign(G.bld, sv.bld||{});
+    Object.assign(G.cd,  sv.cd||{});
+    Object.assign(G.stats,sv.stats||{});
+    Object.assign(G.upgrades,sv.upgrades||{});
+    G.era=sv.era||1; G.streak=sv.streak||0;
+    G.lastLogin=sv.lastLogin||''; G.streakClaimed=sv.streakClaimed||false;
+    G.quests=sv.quests||[]; G.questsDate=sv.questsDate||'';
+    G.prestige=sv.prestige||0; G.prestigeBonus=sv.prestigeBonus||0;
+    G.mysteryBoxes=sv.mysteryBoxes||0; G.totalTaps=sv.totalTaps||0; G.nextBoxAt=sv.nextBoxAt||0;
+    // Re-place saved buildings on the map
+    Object.entries(G.bld).forEach(([id,built])=>{
+      if(built && BLD_FN[id] && !buildingMeshes[id]){
+        // Place at default spot if no saved pos — they can move it
+      }
+    });
+    toast('💾 Spel geladen!',2000);
+  }catch(e){ console.warn('Load failed:',e); }
+}
+// Auto-save every 30 seconds
+setInterval(saveGame, 30000);
+
+function launch(){
+  const sp=document.getElementById('splash');
+  sp.style.transition='opacity .5s';sp.style.opacity='0';
+  setTimeout(()=>{sp.style.display='none';},500);
+  initThree();
+  startPassive();
+  initDailyQuests();
+  loadGame();
+  updateHUD();
+  setTimeout(()=>{
+    addRes('stone',30);addRes('wood',30);addRes('emp',10);
+    updateHUD();
+    toast('🎉 Welkom in Empyria! +30🪨 +30🪵 +10🪙  Verken de wereld!');
+  },800);
+}
+</script>
+</body>
+</html>
